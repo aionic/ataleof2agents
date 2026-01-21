@@ -34,12 +34,12 @@ class FoundryAgentRegistration:
     def __init__(self):
         """Initialize Foundry agent registration."""
         self.project_endpoint = os.getenv("AZURE_AI_PROJECT_ENDPOINT")
-        self.weather_function_url = os.getenv("WEATHER_FUNCTION_URL")
+        self.weather_api_url = os.getenv("WEATHER_API_URL")
 
         if not self.project_endpoint:
             raise ValueError("AZURE_AI_PROJECT_ENDPOINT environment variable is required")
-        if not self.weather_function_url:
-            raise ValueError("WEATHER_FUNCTION_URL environment variable is required")
+        if not self.weather_api_url:
+            raise ValueError("WEATHER_API_URL environment variable is required (external weather API endpoint)")
 
         # Initialize Azure AI Project Client
         credential = DefaultAzureCredential()
@@ -49,6 +49,7 @@ class FoundryAgentRegistration:
         )
 
         logger.info(f"Initialized Foundry client for project: {self.project_endpoint}")
+        logger.info(f"Weather API endpoint: {self.weather_api_url}")
 
     def load_agent_instructions(self) -> str:
         """
@@ -76,62 +77,60 @@ class FoundryAgentRegistration:
             logger.error(f"Agent prompts file not found: {prompts_file}")
             raise
 
-    def get_tool_definition(self) -> Dict[str, Any]:
+    def load_openapi_spec(self) -> Dict[str, Any]:
         """
-        Get the get_weather tool definition for Foundry.
+        Load OpenAPI 3.0 specification for weather API.
 
         Returns:
-            Tool definition dictionary
+            OpenAPI spec dictionary
         """
-        # Load tool schema from contracts
-        contracts_dir = os.path.join(
+        openapi_file = os.path.join(
             os.path.dirname(__file__),
             '..',
-            '..',
-            'specs',
-            '001-weather-clothing-advisor',
-            'contracts'
+            'weather-api',
+            'openapi.json'
         )
-        tool_schema_file = os.path.join(contracts_dir, 'function-tool-schema.json')
 
         try:
-            with open(tool_schema_file, 'r', encoding='utf-8') as f:
-                tool_schema = json.load(f)
-            logger.info(f"Loaded tool schema from {tool_schema_file}")
+            with open(openapi_file, 'r', encoding='utf-8') as f:
+                openapi_spec = json.load(f)
+            logger.info(f"Loaded OpenAPI spec from {openapi_file}")
+            return openapi_spec
+        except FileNotFoundError:
+            logger.error(f"OpenAPI spec file not found: {openapi_file}")
+            raise
 
-            # Adapt schema for Foundry with function URL
+    def get_tool_definition(self) -> Dict[str, Any]:
+        """
+        Get the OpenAPI tool definition for Foundry.
+
+        Returns:
+            Tool definition dictionary using OpenAPI spec
+        """
+        try:
+            openapi_spec = self.load_openapi_spec()
+
+            # Create OpenAPI tool definition for Foundry
+            # Foundry supports OpenAPI 3.0 tools for external HTTP APIs
             tool_definition = {
-                "type": "function",
-                "function": {
-                    "name": tool_schema["name"],
-                    "description": tool_schema["description"],
-                    "parameters": tool_schema["parameters"],
-                    "url": self.weather_function_url
+                "type": "openapi",
+                "openapi": {
+                    "name": "get_weather",
+                    "description": "Retrieve current weather data for a US zip code including temperature, conditions, humidity, wind speed, and precipitation",
+                    "spec": openapi_spec,
+                    "operation_id": "getWeather",  # From OpenAPI spec paths./api/weather.get.operationId
+                    "authentication": {
+                        "type": "none"  # Weather API uses anonymous access
+                    }
                 }
             }
 
+            logger.info("Created OpenAPI tool definition for get_weather")
             return tool_definition
 
-        except FileNotFoundError:
-            logger.warning(f"Tool schema file not found: {tool_schema_file}. Using inline definition.")
-            return {
-                "type": "function",
-                "function": {
-                    "name": "get_weather",
-                    "description": "Retrieve current weather data for a US zip code",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "zip_code": {
-                                "type": "string",
-                                "description": "5-digit US zip code"
-                            }
-                        },
-                        "required": ["zip_code"]
-                    },
-                    "url": self.weather_function_url
-                }
-            }
+        except Exception as e:
+            logger.exception("Error creating tool definition")
+            raise
 
     def register_agent(self, agent_name: str = "WeatherClothingAdvisor") -> str:
         """
