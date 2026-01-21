@@ -1,0 +1,233 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Weather API",
+    "description": "External weather data API for clothing recommendation agents. Provides current weather conditions for US zip codes using OpenWeatherMap data.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Weather API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://ca-weather-api-dev-ezbvua.mangomushroom-3560f614.swedencentral.azurecontainerapps.io",
+      "description": "Azure Container Apps - Development"
+    }
+  ],
+  "paths": {
+    "/api/weather": {
+      "get": {
+        "summary": "Get current weather",
+        "description": "Retrieve current weather data for a US zip code including temperature, conditions, humidity, wind speed, and precipitation.",
+        "operationId": "getWeather",
+        "tags": ["Weather"],
+        "parameters": [
+          {
+            "name": "zip_code",
+            "in": "query",
+            "description": "5-digit US zip code (e.g., 10001 for New York, 90210 for Beverly Hills)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{5}$",
+              "example": "10001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weather data retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeatherResponse"
+                },
+                "example": {
+                  "location": "New York, NY",
+                  "temperature": 23.38,
+                  "feels_like": 12.83,
+                  "condition": "Clear",
+                  "description": "clear sky",
+                  "humidity": 47,
+                  "wind_speed": 10.36,
+                  "precipitation": "0"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid zip code format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "error_code": "INVALID_ZIP_CODE",
+                    "message": "Invalid zip code format",
+                    "details": "Zip code must be exactly 5 digits"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Zip code not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "error_code": "ZIP_CODE_NOT_FOUND",
+                    "message": "Zip code not found",
+                    "details": "The provided zip code could not be found in the database"
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Weather service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "error_code": "SERVICE_UNAVAILABLE",
+                    "message": "Weather service temporarily unavailable",
+                    "details": "Unable to connect to OpenWeatherMap API"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Check if the weather API service is healthy and responsive",
+        "operationId": "healthCheck",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    },
+                    "service": {
+                      "type": "string",
+                      "example": "Weather API"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "WeatherResponse": {
+        "type": "object",
+        "required": ["location", "temperature", "condition"],
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "City and state name",
+            "example": "New York, NY"
+          },
+          "temperature": {
+            "type": "number",
+            "format": "float",
+            "description": "Current temperature in Fahrenheit",
+            "example": 23.38
+          },
+          "feels_like": {
+            "type": "number",
+            "format": "float",
+            "description": "Feels-like temperature in Fahrenheit",
+            "example": 12.83
+          },
+          "condition": {
+            "type": "string",
+            "description": "Weather condition (Clear, Clouds, Rain, Snow, etc.)",
+            "example": "Clear"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed weather description",
+            "example": "clear sky"
+          },
+          "humidity": {
+            "type": "integer",
+            "description": "Humidity percentage (0-100)",
+            "example": 47
+          },
+          "wind_speed": {
+            "type": "number",
+            "format": "float",
+            "description": "Wind speed in miles per hour",
+            "example": 10.36
+          },
+          "precipitation": {
+            "type": "string",
+            "description": "Precipitation status (0 for no precipitation, or description)",
+            "example": "0"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["error_code", "message"],
+            "properties": {
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code",
+                "example": "INVALID_ZIP_CODE"
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable error message",
+                "example": "Invalid zip code format"
+              },
+              "details": {
+                "type": "string",
+                "description": "Additional error details",
+                "example": "Zip code must be exactly 5 digits"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Weather",
+      "description": "Weather data operations"
+    },
+    {
+      "name": "Health",
+      "description": "Health check operations"
+    }
+  ]
+}
