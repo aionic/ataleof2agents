@@ -7,7 +7,7 @@ version: 1.0.0
 
 # Model configuration
 model:
-  deployment_name: ${AZURE_AI_MODEL_DEPLOYMENT_NAME}  # e.g., gpt-4, gpt-4o
+  deployment_name: gpt-4.1  # Foundry deployment name
   temperature: 0.7
   max_tokens: 1000
   top_p: 0.95
@@ -18,21 +18,12 @@ instructions_file: ../../specs/001-weather-clothing-advisor/contracts/agent-prom
 # Tools available to the agent
 tools:
   - name: get_weather
-    type: function
-    description: Retrieves current weather data for a US zip code including temperature, conditions, humidity, and wind speed
-    url: ${WEATHER_FUNCTION_URL}  # Azure Function endpoint
-    method: GET
-    parameters:
-      type: object
-      properties:
-        zip_code:
-          type: string
-          description: 5-digit US zip code (e.g., '10001', '90210')
-          pattern: ^[0-9]{5}$
-      required:
-        - zip_code
-    response_format: json
-    timeout_seconds: 5
+    type: openapi
+    description: Retrieves current weather data for a US zip code including temperature, conditions, humidity, wind speed, and precipitation
+    spec_file: ../weather-api/openapi.json  # OpenAPI 3.0 specification
+    operation_id: getWeather  # Specific operation from OpenAPI spec
+    # Alternative: inline spec URL for runtime loading
+    # spec_url: https://ca-weather-api-dev-ezbvua.mangomushroom-3560f614.swedencentral.azurecontainerapps.io/openapi.json
 
 # Telemetry and monitoring
 telemetry:
@@ -72,3 +63,9 @@ metadata:
   poc_version: 1.0.0
   deployment_region: swedencentral
   constitution_version: 1.0.0
+  deployment_type: foundry-managed-agent
+  external_apis:
+    - name: weather-api
+      type: container-app
+      endpoint: https://ca-weather-api-dev-ezbvua.mangomushroom-3560f614.swedencentral.azurecontainerapps.io
+      openapi_spec: ../weather-api/openapi.json
