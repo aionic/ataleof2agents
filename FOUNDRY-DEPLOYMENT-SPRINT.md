@@ -5,16 +5,18 @@
 **Sprint Duration**: 1-2 days
 **Start Date**: 2026-01-21
 **Current Commit**: b81ea07
+**Core Demo**: External API orchestration in workflows (Agent Framework Pattern 4)
 
 ---
 
 ## 🎯 Sprint Objective
 
-Deploy the Weather Clothing Advisor agent to **Azure AI Foundry** as a managed agent service, calling the existing **Weather API Container App** as an external OpenAPI tool. This creates a production-ready hybrid architecture:
+Deploy the Weather Clothing Advisor agent to **Azure AI Foundry** as a managed agent service, calling the existing **Weather API Container App** as an external OpenAPI tool. **Primary demonstration goal**: Show how to orchestrate external APIs (like weather API) as part of workflows using the Microsoft Agent Framework - demonstrating that workflows can call APIs directly without requiring agents for every step.
 
 - **Agent**: Foundry-hosted managed service (serverless, auto-scaling)
-- **Weather API**: Container Apps (external HTTP service)
-- **Benefits**: Centralized agent management, consistent API patterns, separation of concerns
+- **Weather API**: Container Apps (external HTTP service)  
+- **Workflow Demo**: Agent Framework orchestration with external API integration
+- **Benefits**: API-first workflows, cost-effective (use agents only when needed), flexible orchestration
 
 ---
 
@@ -399,86 +401,116 @@ Invoke-RestMethod `
 
 ---
 
-### Story 7 (Bonus): Invoke Agent from Workflow
+### Story 7: Workflow Orchestration with External APIs (Agent Framework)
 
+**Priority**: CORE DELIVERY
 **Acceptance Criteria**:
-- ✅ Demonstrate invoking Foundry agent via Threads/Runs API
-- ✅ Document programmatic invocation pattern
-- ✅ Create example PowerShell script for workflow integration
-- ✅ Optional: Set up Logic Apps connector for orchestration
+- ✅ Demonstrate workflow orchestration using Agent Framework (Pattern 4)
+- ✅ Show how to call external APIs (weather API) directly from workflows
+- ✅ Create Python example showing API-first workflow (no agent dependency)
+- ✅ Document hybrid workflows (external API + agent calls)
+- ✅ Provide reusable workflow templates
 
 **Tasks**:
-1. Create PowerShell script to invoke agent via API (threads/runs pattern)
-2. Document the invocation flow (create thread → send message → create run → poll)
-3. Test programmatic invocation with sample queries
-4. Optional: Create Logic Apps workflow that calls agent
-5. Document use cases for workflow integration
+1. Create Python workflow script using Agent Framework SDK
+2. Implement direct weather API call as workflow step
+3. Show how to chain external API calls in sequential/concurrent workflows
+4. Create hybrid example: external API → process data → optional agent consultation
+5. Document workflow patterns for external API integration
+6. Create reusable templates for common patterns
 
-**Estimate**: 1-2 hours
+**Estimate**: 2-3 hours
 
-**Invocation Pattern (Threads/Runs API)**:
-```powershell
-# 1. Get access token
-$token = az account get-access-token --resource https://cognitiveservices.azure.com --query accessToken -o tsv
+**Workflow Pattern (Agent Framework + External APIs)**:
+```python
+from agent_framework import SequentialBuilder, Workflow
+import requests
+import json
 
-# 2. Create a thread (conversation)
-$threadResponse = Invoke-RestMethod `
-  -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads" `
-  -Method POST `
-  -Headers @{Authorization="Bearer $token"; "Content-Type"="application/json"} `
-  -Body '{}'
+# Step 1: Call external weather API directly (no agent needed)
+def get_weather_data(zip_code: str) -> dict:
+    """Direct API call to weather service"""
+    url = f"https://ca-weather-api-dev-ezbvua.greenstone-12345678.eastus.azurecontainerapps.io/api/weather"
+    response = requests.get(url, params={"zip_code": zip_code})
+    return response.json()
 
-$threadId = $threadResponse.id
+# Step 2: Process weather data (business logic)
+def recommend_clothing(weather_data: dict) -> dict:
+    """Pure Python logic - no agent needed for simple rules"""
+    temp = weather_data["temperature"]
+    conditions = weather_data["conditions"].lower()
+    
+    recommendations = []
+    if temp < 32:
+        recommendations.append("Heavy winter coat")
+    elif temp < 50:
+        recommendations.append("Jacket or sweater")
+    
+    if "rain" in conditions or "shower" in conditions:
+        recommendations.append("Umbrella and waterproof jacket")
+    
+    return {
+        "location": weather_data["location"],
+        "recommendations": recommendations,
+        "weather_summary": f"{temp}°F, {weather_data['conditions']}"
+    }
 
-# 3. Add message to thread
-$messageBody = @{
-  role = "user"
-  content = "What should I wear in 10001?"
-} | ConvertTo-Json
+# Build workflow that orchestrates external APIs
+workflow = SequentialBuilder()
+workflow.add_step("fetch_weather", get_weather_data)
+workflow.add_step("generate_recommendations", recommend_clothing)
 
-Invoke-RestMethod `
-  -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads/$threadId/messages" `
-  -Method POST `
-  -Headers @{Authorization="Bearer $token"; "Content-Type"="application/json"} `
-  -Body $messageBody
-
-# 4. Create a run to process the message
-$runResponse = Invoke-RestMethod `
-  -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads/$threadId/runs" `
-  -Method POST `
-  -Headers @{Authorization="Bearer $token"; "Content-Type"="application/json"} `
-  -Body '{}'
-
-$runId = $runResponse.id
-
-# 5. Poll for run completion
-do {
-  Start-Sleep -Seconds 2
-  $runStatus = Invoke-RestMethod `
-    -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads/$threadId/runs/$runId" `
-    -Method GET `
-    -Headers @{Authorization="Bearer $token"}
-} while ($runStatus.status -in @('queued', 'in_progress'))
-
-# 6. Get messages from thread
-$messages = Invoke-RestMethod `
-  -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads/$threadId/messages" `
-  -Method GET `
-  -Headers @{Authorization="Bearer $token"}
-
-# Display agent response
-$messages.data[0].content[0].text.value
+# Execute workflow
+result = workflow.run({"zip_code": "10001"})
+print(json.dumps(result, indent=2))
 ```
 
-**Use Cases for Workflow Integration**:
-- **Scheduled Reports**: Logic Apps timer trigger → invoke agent → email results
-- **Event-Driven**: Azure Function triggered by queue → call agent → process response
-- **Multi-Step Workflows**: Chain multiple agent calls in Logic Apps
-- **Integration with External Systems**: Agent as part of larger automation flows
+**Hybrid Pattern (External API + Agent Consultation)**:
+```python
+from agent_framework import SequentialBuilder
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
+
+# Combine external API with optional agent consultation
+workflow = SequentialBuilder()
+
+# Step 1: External weather API
+workflow.add_step("weather_api", get_weather_data)
+
+# Step 2: Business logic
+workflow.add_step("basic_recommendations", recommend_clothing)
+
+# Step 3: Agent enhancement (only for complex cases)
+def enhance_with_agent(data: dict) -> dict:
+    """Use agent for nuanced advice when needed"""
+    if data.get("complex_conditions"):  # e.g., severe weather
+        client = AIProjectClient(...)
+        # Call agent for sophisticated reasoning
+        agent_response = client.agents.invoke(...)
+        data["enhanced_advice"] = agent_response
+    return data
+
+workflow.add_step("agent_consultation", enhance_with_agent)
+
+result = workflow.run({"zip_code": "10001"})
+```
+
+**Key Benefits of This Approach**:
+- **API-First**: External APIs as primary workflow steps (not just agent tools)
+- **Flexible**: Mix APIs, business logic, and agents in any combination
+- **Cost-Effective**: Use agents only when sophisticated reasoning is needed
+- **Testable**: Each workflow step is independently testable
+- **Reusable**: Workflow templates for common patterns
+
+**Use Cases for External API Workflows**:
+- **Data Aggregation**: Call multiple APIs → consolidate → format → deliver
+- **ETL Pipelines**: Extract (API) → Transform (logic) → Load (agent summarization)
+- **Event Processing**: Webhook → enrich with API data → conditional agent consultation
+- **Scheduled Reports**: Timer → API calls → data processing → optional agent insights
 
 **Reference Documentation**:
-- [Trigger an agent using Logic Apps](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/triggers)
-- [Threads, runs, and messages](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/concepts/threads-runs-messages)
+- [Agent Framework Workflows](https://learn.microsoft.com/en-us/agent-framework/workflows)
+- [Sequential and Concurrent Execution](https://learn.microsoft.com/en-us/agent-framework/workflows/execution-patterns)
 
 ---
 
