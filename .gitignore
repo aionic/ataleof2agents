@@ -29,18 +29,23 @@ ENV/
 env/
 .virtualenv/
 
+# UV package manager
+.uv/
+
 # IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
-# Environment variables
+# Environment variables - NEVER commit secrets
 .env
 .env.local
+.env.*.local
 *.env
+!.env.example
+!*/.env.example
 
 # Testing
 .pytest_cache/
@@ -48,23 +53,58 @@ env/
 htmlcov/
 .tox/
 .nox/
+coverage.xml
+*.cover
 
 # Logs
 *.log
 logs/
 
 # OS
+.DS_Store
 Thumbs.db
 *.tmp
+Desktop.ini
+ehthumbs.db
 
-# Deployment
+# Deployment - Terraform
 .terraform/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
 
-# Bicep
+# Deployment - Bicep
 *.bicep.json
 
-# Container builds
-.dockerignore.bak
+# Azure
+.azure/
+azds.yaml
+
+# Docker
+*.dockerignore.bak
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# mypy / type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# Ruff / linting
+.ruff_cache/
+
+# Local development
+local/
+scratch/
+tmp/
+temp/
+
+# Secrets - extra protection
+secrets/
+*.pem
+*.key
+*.crt
+!*.example.pem
