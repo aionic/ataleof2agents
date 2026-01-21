@@ -2,8 +2,8 @@
 
 **Sprint Goal**: Deploy Weather Clothing Advisor agent to Azure AI Foundry using OpenAPI tool pattern to call external weather API container
 
-**Sprint Duration**: 1-2 days  
-**Start Date**: 2026-01-21  
+**Sprint Duration**: 1-2 days
+**Start Date**: 2026-01-21
 **Current Commit**: b81ea07
 
 ---
@@ -29,6 +29,35 @@ Deploy the Weather Clothing Advisor agent to **Azure AI Foundry** as a managed a
 - Agent doesn't execute functions - it requests them, you execute and return results
 
 **Reference**: [How to use Foundry Agent Service with OpenAPI Specified Tools](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/tools-classic/openapi-spec)
+
+### Invoking Agents from Workflows
+
+**Multiple Integration Patterns Available**:
+
+1. **Direct API Calls (Threads/Runs Pattern)**
+   - Create thread, send message, create run, poll for completion
+   - Best for programmatic integration and custom applications
+   - Full control over conversation flow
+
+2. **Azure Logic Apps Integration**
+   - Trigger agents from Logic Apps workflows
+   - Use Foundry Agent Service connectors
+   - Ideal for low-code/no-code orchestration
+   - **Reference**: [Trigger an agent using Logic Apps](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/triggers)
+
+3. **Foundry Workflow Builder (UI-based)**
+   - Visual workflow orchestration in Foundry portal
+   - Add agents as "Invoke agent" nodes
+   - Sequential, concurrent, or group chat patterns
+   - **Reference**: [Build a workflow in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/concepts/workflow)
+
+4. **Microsoft Agent Framework Workflows (Code)**
+   - Programmatic workflow orchestration in Python/.NET
+   - `workflow.run_stream()` for streaming execution
+   - Sequential, concurrent, group chat, or custom patterns
+   - **Reference**: [Agent Framework Workflows](https://learn.microsoft.com/en-us/agent-framework/user-guide/workflows/orchestrations/overview)
+
+**Recommended for This Sprint**: Start with **Direct API Calls** for testing, then demonstrate **Logic Apps integration** as advanced pattern.
 
 **Agent Creation via Python SDK**
 ```python
@@ -370,6 +399,89 @@ Invoke-RestMethod `
 
 ---
 
+### Story 7 (Bonus): Invoke Agent from Workflow
+
+**Acceptance Criteria**:
+- ✅ Demonstrate invoking Foundry agent via Threads/Runs API
+- ✅ Document programmatic invocation pattern
+- ✅ Create example PowerShell script for workflow integration
+- ✅ Optional: Set up Logic Apps connector for orchestration
+
+**Tasks**:
+1. Create PowerShell script to invoke agent via API (threads/runs pattern)
+2. Document the invocation flow (create thread → send message → create run → poll)
+3. Test programmatic invocation with sample queries
+4. Optional: Create Logic Apps workflow that calls agent
+5. Document use cases for workflow integration
+
+**Estimate**: 1-2 hours
+
+**Invocation Pattern (Threads/Runs API)**:
+```powershell
+# 1. Get access token
+$token = az account get-access-token --resource https://cognitiveservices.azure.com --query accessToken -o tsv
+
+# 2. Create a thread (conversation)
+$threadResponse = Invoke-RestMethod `
+  -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads" `
+  -Method POST `
+  -Headers @{Authorization="Bearer $token"; "Content-Type"="application/json"} `
+  -Body '{}'
+
+$threadId = $threadResponse.id
+
+# 3. Add message to thread
+$messageBody = @{
+  role = "user"
+  content = "What should I wear in 10001?"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads/$threadId/messages" `
+  -Method POST `
+  -Headers @{Authorization="Bearer $token"; "Content-Type"="application/json"} `
+  -Body $messageBody
+
+# 4. Create a run to process the message
+$runResponse = Invoke-RestMethod `
+  -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads/$threadId/runs" `
+  -Method POST `
+  -Headers @{Authorization="Bearer $token"; "Content-Type"="application/json"} `
+  -Body '{}'
+
+$runId = $runResponse.id
+
+# 5. Poll for run completion
+do {
+  Start-Sleep -Seconds 2
+  $runStatus = Invoke-RestMethod `
+    -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads/$threadId/runs/$runId" `
+    -Method GET `
+    -Headers @{Authorization="Bearer $token"}
+} while ($runStatus.status -in @('queued', 'in_progress'))
+
+# 6. Get messages from thread
+$messages = Invoke-RestMethod `
+  -Uri "https://anfoundy3lsww.services.ai.azure.com/agents/<agent-id>/threads/$threadId/messages" `
+  -Method GET `
+  -Headers @{Authorization="Bearer $token"}
+
+# Display agent response
+$messages.data[0].content[0].text.value
+```
+
+**Use Cases for Workflow Integration**:
+- **Scheduled Reports**: Logic Apps timer trigger → invoke agent → email results
+- **Event-Driven**: Azure Function triggered by queue → call agent → process response
+- **Multi-Step Workflows**: Chain multiple agent calls in Logic Apps
+- **Integration with External Systems**: Agent as part of larger automation flows
+
+**Reference Documentation**:
+- [Trigger an agent using Logic Apps](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/triggers)
+- [Threads, runs, and messages](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/concepts/threads-runs-messages)
+
+---
+
 ## 🧹 Repository Cleanup Tasks
 
 ### Cleanup Story: Remove Function-Related Code
@@ -417,15 +529,17 @@ Files to review and update:
 - Story 4: 3 points (code changes, testing)
 - Story 5: 3 points (deployment, validation)
 - Story 6: 2 points (testing, documentation)
-- Cleanup: 2 points
+- Story 7 (Bonus): 2 points (workflow integration)
+- Cleanup: 2 points (completed)
 
-**Total**: 14 points
+**Total**: 16 points (14 core + 2 bonus)
 
 ### Time Estimates
-- Technical work: 5-6 hours
+- Technical work: 6-7 hours
 - Testing: 2-3 hours
-- Documentation: 1 hour
-- **Total**: 8-10 hours (1-2 days)
+- Documentation: 1-2 hours
+- Workflow integration (bonus): 1-2 hours
+- **Total**: 10-14 hours (1.5-2 days)
 
 ---
 
@@ -563,22 +677,22 @@ git commit -m "feat: deploy agent to Azure Foundry with OpenAPI tool"
 ## 📝 Success Criteria
 
 ### Technical Success
-✅ Agent deployed to Foundry  
-✅ Weather API accessible externally  
-✅ OpenAPI tool integration working  
-✅ All test cases passing  
+✅ Agent deployed to Foundry
+✅ Weather API accessible externally
+✅ OpenAPI tool integration working
+✅ All test cases passing
 ✅ Response quality matches container agent
 
 ### Business Success
-✅ Demonstrates Foundry agent capabilities  
-✅ Validates hybrid architecture pattern  
-✅ Enables future agent deployments  
+✅ Demonstrates Foundry agent capabilities
+✅ Validates hybrid architecture pattern
+✅ Enables future agent deployments
 ✅ Clean, maintainable codebase
 
 ### Documentation Success
-✅ Complete deployment guide  
-✅ Architecture clearly documented  
-✅ Testing results recorded  
+✅ Complete deployment guide
+✅ Architecture clearly documented
+✅ Testing results recorded
 ✅ Comparison analysis complete
 
 ---
@@ -625,6 +739,6 @@ git commit -m "feat: deploy agent to Azure Foundry with OpenAPI tool"
 
 ---
 
-**Sprint Owner**: Development Team  
-**Stakeholders**: Architecture, Platform Engineering  
+**Sprint Owner**: Development Team
+**Stakeholders**: Architecture, Platform Engineering
 **Review Date**: End of sprint (2026-01-22 or 2026-01-23)
