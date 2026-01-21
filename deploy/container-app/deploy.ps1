@@ -245,5 +245,9 @@ Write-Host "   Agent: $ContainerImage" -ForegroundColor White
 Write-Host "   Weather API: $WeatherApiImage" -ForegroundColor White
 Write-Host ""
 Write-Host "🧪 Test the deployment:" -ForegroundColor Cyan
-Write-Host "   curl -X POST $containerAppUrl/chat -H 'Content-Type: application/json' -d '{\"message\": \"What should I wear in 10001?\"}'" -ForegroundColor White
+Write-Host "   # Test agent (end-to-end with weather API)" -ForegroundColor Gray
+Write-Host "   Invoke-RestMethod -Uri '$containerAppUrl/chat' -Method POST -ContentType 'application/json' -Body '{\"message\": \"What should I wear in 10001?\"}' | ConvertTo-Json -Depth 10" -ForegroundColor White
+Write-Host ""
+Write-Host "   # Test weather API directly" -ForegroundColor Gray
+Write-Host "   Invoke-RestMethod -Uri '$weatherApiUrl/api/weather?zip_code=10001' -Method GET | ConvertTo-Json" -ForegroundColor White
 Write-Host ""
