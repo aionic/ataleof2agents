@@ -1,0 +1,20 @@
+{
+  "type": "function",
+  "function": {
+    "name": "get_weather",
+    "description": "Retrieves current weather data for a US zip code including temperature, conditions, humidity, and wind speed. Use this tool whenever you need weather information to provide clothing recommendations.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "zip_code": {
+          "type": "string",
+          "description": "5-digit US zip code (e.g., '10001', '90210')",
+          "pattern": "^[0-9]{5}$"
+        }
+      },
+      "required": [
+        "zip_code"
+      ]
+    }
+  }
+}

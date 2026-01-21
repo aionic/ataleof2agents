@@ -1,0 +1,41 @@
+# Git files
+.git/
+.gitignore
+
+# Python virtual environments
+.venv/
+venv/
+__pycache__/
+
+# Environment variables (never include in container)
+.env
+.env.*
+
+# Development files
+.vscode/
+.idea/
+*.swp
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+logs/
+
+# Documentation (except README)
+docs/
+specs/
+*.md
+!README.md
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,34 @@
+# Multi-stage build for Weather API Container
+FROM python:3.11-slim AS builder
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+# Copy dependencies file
+COPY pyproject.toml ./
+
+# Install dependencies
+RUN uv pip install --system --no-cache \
+    fastapi \
+    uvicorn[standard] \
+    requests
+
+# Final stage
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy installed packages and executables from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+
+# Copy weather API code
+COPY src/weather-api/ ./
+
+# Expose port
+EXPOSE 8080
+
+# Run the application
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
