@@ -1,22 +1,37 @@
 # Azure Foundry Deployment Sprint
 
-**Sprint Goal**: Deploy Weather Clothing Advisor agent to Azure AI Foundry using OpenAPI tool pattern to call external weather API container
+**Sprint Goal**: Demonstrate portable Agent Framework + external API workflow pattern working in BOTH Container Apps and Azure AI Foundry environments
 
-**Sprint Duration**: 1-2 days
+**Sprint Duration**: 2-3 days
 **Start Date**: 2026-01-21
-**Current Commit**: b81ea07
-**Core Demo**: External API orchestration in workflows (Agent Framework Pattern 4)
+**Current Commit**: d2d391d
+**Core Demo**: Same workflow code running in both self-hosted (Container Apps) and managed (Foundry) environments
 
 ---
 
 ## 🎯 Sprint Objective
 
-Deploy the Weather Clothing Advisor agent to **Azure AI Foundry** as a managed agent service, calling the existing **Weather API Container App** as an external OpenAPI tool. **Primary demonstration goal**: Show how to orchestrate external APIs (like weather API) as part of workflows using the Microsoft Agent Framework - demonstrating that workflows can call APIs directly without requiring agents for every step.
+**Prove portability**: Refactor the container-based agent to use Agent Framework + external API pattern, then deploy the same pattern to Azure AI Foundry. This demonstrates that the workflow code is portable across deployment environments.
 
-- **Agent**: Foundry-hosted managed service (serverless, auto-scaling)
-- **Weather API**: Container Apps (external HTTP service)  
-- **Workflow Demo**: Agent Framework orchestration with external API integration
-- **Benefits**: API-first workflows, cost-effective (use agents only when needed), flexible orchestration
+**Phase 1: Container Apps Refactor** (Stories 0-1)
+- Refactor existing container agent to use Agent Framework
+- Weather API becomes external HTTP service (not internal function)
+- Validate pattern works in self-hosted environment
+
+**Phase 2: Foundry Deployment** (Stories 2-6)
+- Reuse same workflow pattern in Foundry
+- Deploy as managed agent service
+- Prove code portability
+
+**Phase 3: Advanced Demo** (Story 7)
+- Show complex workflow orchestration
+- Multiple API calls, concurrent execution, hybrid patterns
+
+**Benefits**: 
+- **Portability**: Same code works in Container Apps and Foundry
+- **API-First**: External APIs as workflow steps (not just agent tools)
+- **Cost-Effective**: Use agents only when sophisticated reasoning needed
+- **Flexible**: Choose deployment model (self-hosted vs. managed) without code changes
 
 ---
 
@@ -555,19 +570,23 @@ Files to review and update:
 ## 📊 Sprint Metrics
 
 ### Story Points Breakdown
-- Story 1: 1 point (simple config change)
-- Story 2: 2 points (requires spec knowledge)
-- Story 3: 1 point (config update)
-- Story 4: 3 points (code changes, testing)
-- Story 5: 3 points (deployment, validation)
-- Story 6: 2 points (testing, documentation)
-- Story 7 (Bonus): 2 points (workflow integration)
+- Story 0: 4 points (refactor container agent to use Agent Framework + external API)
+- Story 1: 1 point (enable external ingress - prerequisite for Story 0)
+- Story 2: 2 points (OpenAPI spec)
+- Story 3: 1 point (Foundry agent config)
+- Story 4: 3 points (Foundry deployment script)
+- Story 5: 3 points (deploy and test Foundry)
+- Story 6: 2 points (comparison testing)
+- Story 7: 3 points (advanced workflow orchestration demo)
 - Cleanup: 2 points (completed)
 
-**Total**: 16 points (14 core + 2 bonus)
+**Total**: 21 points (19 core + 2 optional enhancements)
 
 ### Time Estimates
-- Technical work: 6-7 hours
+- Story 0 + Story 1: 3-4 hours (refactor + deploy)
+- Stories 2-6: 7-9 hours (Foundry deployment)
+- Story 7: 2-3 hours (advanced demo)
+- Testing/Documentation: 2 hours
 - Testing: 2-3 hours
 - Documentation: 1-2 hours
 - Workflow integration (bonus): 1-2 hours
