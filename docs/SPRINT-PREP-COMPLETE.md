@@ -1,7 +1,7 @@
 # Sprint Preparation Complete ✅
 
-**Date**: 2026-01-21  
-**Commit**: 25ae722  
+**Date**: 2026-01-21
+**Commit**: 25ae722
 **Status**: Ready to Execute
 
 ---
@@ -276,6 +276,6 @@ The sprint will deploy the Weather Clothing Advisor agent to Azure AI Foundry us
 
 ---
 
-**Prepared by**: GitHub Copilot  
-**Date**: 2026-01-21  
+**Prepared by**: GitHub Copilot
+**Date**: 2026-01-21
 **Sprint Ready**: ✅ Yes

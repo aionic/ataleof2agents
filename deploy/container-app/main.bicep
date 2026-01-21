@@ -81,9 +81,10 @@ resource weatherApiApp 'Microsoft.App/containerApps@2023-05-01' = {
     managedEnvironmentId: containerAppEnvironment.id
     configuration: {
       ingress: {
-        external: false  // Internal only - not exposed to internet
+        external: true  // External access enabled for Foundry agent integration
         targetPort: 8080
-        transport: 'http'
+        transport: 'auto'
+        allowInsecure: false
       }
       registries: containerRegistry != '' ? [
         {

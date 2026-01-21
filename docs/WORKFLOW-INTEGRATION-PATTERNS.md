@@ -2,8 +2,8 @@
 
 **Purpose**: Document patterns for invoking Foundry-hosted agents as part of larger workflows and automation scenarios
 
-**Date**: 2026-01-21  
-**Sprint**: Foundry Deployment  
+**Date**: 2026-01-21
+**Sprint**: Foundry Deployment
 **Status**: Research Complete
 
 ---
@@ -401,7 +401,7 @@ async def run_workflow(query: str):
     async for event in workflow.run_stream(query):
         if isinstance(event, WorkflowOutputEvent):
             output_event = event
-    
+
     if output_event:
         messages = output_event.data
         for msg in messages:
@@ -558,6 +558,6 @@ For the Weather Clothing Advisor sprint, we will:
 
 ---
 
-**Last Updated**: 2026-01-21  
-**Author**: Development Team  
+**Last Updated**: 2026-01-21
+**Author**: Development Team
 **Status**: Ready for Implementation

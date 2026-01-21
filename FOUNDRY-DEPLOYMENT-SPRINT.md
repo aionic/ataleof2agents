@@ -27,7 +27,7 @@
 - Show complex workflow orchestration
 - Multiple API calls, concurrent execution, hybrid patterns
 
-**Benefits**: 
+**Benefits**:
 - **Portability**: Same code works in Container Apps and Foundry
 - **API-First**: External APIs as workflow steps (not just agent tools)
 - **Cost-Effective**: Use agents only when sophisticated reasoning needed
@@ -454,16 +454,16 @@ def recommend_clothing(weather_data: dict) -> dict:
     """Pure Python logic - no agent needed for simple rules"""
     temp = weather_data["temperature"]
     conditions = weather_data["conditions"].lower()
-    
+
     recommendations = []
     if temp < 32:
         recommendations.append("Heavy winter coat")
     elif temp < 50:
         recommendations.append("Jacket or sweater")
-    
+
     if "rain" in conditions or "shower" in conditions:
         recommendations.append("Umbrella and waterproof jacket")
-    
+
     return {
         "location": weather_data["location"],
         "recommendations": recommendations,
