@@ -1,50 +1,125 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+=============================================================================
+SYNC IMPACT REPORT
+=============================================================================
+Version: 0.0.0 → 1.0.0
+Change Type: MAJOR (Initial constitution for POC project)
+
+Modified Principles:
+- NEW: Principle I - POC-First Simplicity
+- NEW: Principle II - Documentation-Driven Development
+- NEW: Principle III - Rapid Validation
+
+Added Sections:
+- Core Principles (3 principles)
+- POC Scope & Constraints
+- Governance
+
+Templates Requiring Updates:
+✅ plan-template.md - Constitution Check section is generic
+✅ spec-template.md - Requirements align with POC approach
+✅ tasks-template.md - Task organization supports POC principles
+✅ All agent files - Generic references maintained
+
+Follow-up Actions: None required
+=============================================================================
+-->
+
+# Agent Demo POC Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. POC-First Simplicity
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+**Principle**: This is a proof-of-concept solution designed to showcase technology capabilities, NOT to be enterprise-ready or feature-complete. Every implementation decision must prioritize demonstrating core value over production readiness.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**Rules**:
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+- MUST focus on essential features that demonstrate the technology's value proposition
+- MUST avoid enterprise patterns (complex abstractions, extensive error handling, production-grade security) unless directly relevant to the POC
+- MUST document what is intentionally simplified or omitted for POC purposes
+- SHOULD prefer inline implementations over architectural patterns when appropriate for demonstration
+- SHOULD use in-memory or file-based storage over databases unless data persistence is core to the demonstration
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+**Rationale**: POC projects must move quickly to validate concepts. Over-engineering at this stage wastes time and obscures the core value being demonstrated. Production concerns can be addressed in later phases if the POC proves successful.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### II. Documentation-Driven Development
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+**Principle**: Before writing code or making technical decisions, MUST consult authoritative documentation sources to ensure best practices and avoid common pitfalls.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Rules**:
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- MUST check Microsoft Learn documentation for any Azure or Microsoft technology decisions
+- MUST check Context7 documentation for any third-party libraries, frameworks, or tools
+- MUST document the source of technical decisions in research.md or plan.md
+- MUST include links to relevant documentation in code comments for non-obvious implementations
+- SHOULD capture key learnings and gotchas discovered during development
+
+**Rationale**: POCs often involve unfamiliar technologies. Consulting authoritative sources prevents time-wasting mistakes, ensures we follow recommended patterns, and documents learning for future reference. This is especially critical in time-constrained POC environments where there's no time to recover from poor foundational choices.
+
+### III. Rapid Validation
+
+**Principle**: Features must be implementable and testable quickly. Testing is OPTIONAL and should be applied only where it accelerates validation or prevents critical failures.
+
+**Rules**:
+
+- MUST prioritize manual testing and visual verification for POC features
+- SHOULD write automated tests for complex logic that would be time-consuming to manually verify repeatedly
+- SHOULD write tests for integrations with external services where failures are costly or slow to detect manually
+- MAY skip tests for simple UI components, straightforward CRUD operations, or one-time demo scripts
+- MUST include acceptance criteria in specs that can be manually verified
+- MUST document how to manually test each user story
+
+**Rationale**: Test-driven development is valuable for production systems but can slow POC velocity unnecessarily. POCs are exploratory by nature—requirements change frequently, and code may be discarded. Manual testing is often faster and more appropriate. Strategic testing should focus on preventing time waste, not achieving coverage goals.
+
+## POC Scope & Constraints
+
+**Purpose**: Define what is explicitly IN and OUT of scope for this POC.
+
+**In Scope**:
+
+- Demonstrating core technology capabilities and value proposition
+- Basic functionality sufficient to validate the approach
+- Documentation of technical decisions and learnings
+- Manual testing and validation of key scenarios
+
+**Out of Scope** (Intentionally Deferred):
+
+- Production-grade error handling and edge cases
+- Comprehensive input validation
+- Security hardening (authentication, authorization, encryption beyond basic demos)
+- Performance optimization and scalability
+- Comprehensive automated test coverage
+- CI/CD pipelines and deployment automation
+- Multi-environment configuration
+- Monitoring, logging, and observability beyond basic debugging
+- Code refactoring for maintainability
+- Internationalization and accessibility
+
+**Technology Constraints**:
+
+- SHOULD prefer technologies with strong Microsoft Learn or Context7 documentation
+- SHOULD prefer managed services over self-hosted when using Azure
+- SHOULD use latest stable versions unless POC specifically requires a particular version
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+**Amendment Process**:
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+- Constitution changes require explicit `/speckit.constitution` command invocation
+- Version increment follows semantic versioning (MAJOR.MINOR.PATCH)
+- All amendments must be documented in the Sync Impact Report at the top of this file
+
+**Compliance**:
+
+- Constitution principles take precedence over external best practices that conflict with POC goals
+- Complexity violations (production patterns in POC code) must be justified in plan.md Complexity Tracking section
+- All specifications and plans must pass Constitution Check before implementation begins
+
+**Version Control**:
+
+- MAJOR: Fundamental change in POC approach or removal of core principles
+- MINOR: Addition of new principles or substantial expansion of existing ones
+- PATCH: Clarifications, wording improvements, or minor updates that don't change intent
+
+**Version**: 1.0.0 | **Ratified**: 2026-01-20 | **Last Amended**: 2026-01-20

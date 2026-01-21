@@ -1,0 +1,71 @@
+# Azure AI Foundry Agent Configuration
+# Defines the Weather Clothing Advisor agent for Foundry deployment
+
+name: WeatherClothingAdvisor
+description: AI agent that provides weather information and clothing recommendations based on current conditions
+version: 1.0.0
+
+# Model configuration
+model:
+  deployment_name: gpt-4.1  # Foundry deployment name
+  temperature: 0.7
+  max_tokens: 1000
+  top_p: 0.95
+
+# System instructions loaded from contracts
+instructions_file: ../../specs/001-weather-clothing-advisor/contracts/agent-prompts.md
+
+# Tools available to the agent
+tools:
+  - name: get_weather
+    type: openapi
+    description: Retrieves current weather data for a US zip code including temperature, conditions, humidity, wind speed, and precipitation
+    spec_file: ../weather-api/openapi.json  # OpenAPI 3.0 specification
+    operation_id: getWeather  # Specific operation from OpenAPI spec
+    # Alternative: inline spec URL for runtime loading
+    # spec_url: https://ca-weather-api-dev-ezbvua.mangomushroom-3560f614.swedencentral.azurecontainerapps.io/openapi.json
+
+# Telemetry and monitoring
+telemetry:
+  enabled: true
+  application_insights:
+    connection_string: ${APPLICATIONINSIGHTS_CONNECTION_STRING}
+  custom_dimensions:
+    deployment_type: foundry-agent
+    environment: ${ENVIRONMENT:production}
+    version: 1.0.0
+    feature: weather-clothing-advisor
+
+# Agent behavior settings
+settings:
+  # Response time constraints (SC-001)
+  timeout_seconds: 5
+
+  # Session management (SC-005 - multi-lookup support)
+  enable_conversation_history: true
+  max_conversation_turns: 10
+
+  # Error handling
+  retry_on_failure: true
+  max_retries: 2
+
+  # Content safety
+  enable_content_filtering: true
+
+  # Logging
+  log_level: INFO
+  log_tool_calls: true
+  log_response_times: true
+
+# Metadata for deployment tracking
+metadata:
+  project: weather-clothing-advisor
+  poc_version: 1.0.0
+  deployment_region: swedencentral
+  constitution_version: 1.0.0
+  deployment_type: foundry-managed-agent
+  external_apis:
+    - name: weather-api
+      type: container-app
+      endpoint: https://ca-weather-api-dev-ezbvua.mangomushroom-3560f614.swedencentral.azurecontainerapps.io
+      openapi_spec: ../weather-api/openapi.json

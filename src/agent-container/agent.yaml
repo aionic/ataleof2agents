@@ -1,0 +1,73 @@
+# Azure Container Apps Agent Configuration (Workflow Pattern)
+# Defines the Weather Clothing Advisor agent with workflow orchestration
+
+name: WeatherClothingAdvisor
+description: AI agent that provides weather information and clothing recommendations based on current conditions
+version: 1.0.0
+deployment_type: container-app
+
+# Model configuration (for Azure OpenAI integration)
+model:
+  type: azure-openai
+  deployment_name: ${AZURE_OPENAI_DEPLOYMENT_NAME:gpt-4}  # Optional: if using Azure OpenAI directly
+  temperature: 0.7
+  max_tokens: 1000
+  top_p: 0.95
+
+# System instructions loaded from contracts
+instructions_file: ../../specs/001-weather-clothing-advisor/contracts/agent-prompts.md
+
+# Tools available to the agent
+tools:
+  - name: get_weather
+    type: function
+    description: Retrieves current weather data for a US zip code including temperature, conditions, humidity, and wind speed
+    url: ${WEATHER_API_URL}  # Weather API endpoint
+    method: GET
+    parameters:
+      type: object
+      properties:
+        zip_code:
+          type: string
+          description: 5-digit US zip code (e.g., '10001', '90210')
+          pattern: ^[0-9]{5}$
+      required:
+        - zip_code
+    response_format: json
+    timeout_seconds: 5
+
+# Telemetry and monitoring
+telemetry:
+  enabled: true
+  application_insights:
+    connection_string: ${APPLICATIONINSIGHTS_CONNECTION_STRING}
+  custom_dimensions:
+    deployment_type: container-app
+    environment: ${ENVIRONMENT:production}
+    version: 1.0.0
+    feature: weather-clothing-advisor
+
+# Agent behavior settings
+settings:
+  # Response time constraints (SC-001)
+  timeout_seconds: 5
+
+  # Session management (SC-005 - multi-lookup support)
+  enable_conversation_history: true
+  max_conversation_turns: 10
+
+  # Error handling
+  retry_on_failure: true
+  max_retries: 2
+
+  # Logging
+  log_level: INFO
+  log_tool_calls: true
+  log_response_times: true
+
+# Metadata for deployment tracking
+metadata:
+  project: weather-clothing-advisor
+  poc_version: 1.0.0
+  deployment_region: swedencentral
+  constitution_version: 1.0.0
