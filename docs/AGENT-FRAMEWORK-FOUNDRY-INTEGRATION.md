@@ -360,7 +360,7 @@ agentdemo/
 │   │   ├── agent_service.py        # Core agent (SHARED)
 │   │   ├── app.py                  # FastAPI entry (Container Apps)
 │   │   └── foundry_hosted.py       # Adapter entry (Foundry) - NEW
-│   ├── agent-function/
+│   ├── weather-api/
 │   └── shared/
 ├── deploy/
 │   ├── container-app/

@@ -1,34 +1,12 @@
-# Weather-Based Clothing Advisor - Deployment Guide
+# Deployment Guide (Current)
 
-Complete guide for deploying the Weather-Based Clothing Advisor POC to both **Azure Container Apps** and **Azure AI Foundry Workflow Service**.
+This repository now uses two current deployment guides. Use these instead of legacy instructions:
 
-**Both deployments use workflow orchestration with a 4-step pattern**: Parse Input → Get Weather → Generate Recommendations → Format Response
+- [Container Apps Deployment Guide](docs/DEPLOYMENT-CONTAINER-APPS.md)
+- [Foundry Deployment Guide](docs/DEPLOYMENT-FOUNDRY.md)
+- [Quickstart](QUICKSTART.md)
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Prerequisites](#prerequisites)
-- [Architecture](#architecture)
-- [Deployment Option 1: Azure Container Apps](#deployment-option-1-azure-container-apps)
-- [Deployment Option 2: Azure AI Foundry Workflow](#deployment-option-2-azure-ai-foundry-workflow)
-- [Post-Deployment Testing](#post-deployment-testing)
-- [Monitoring & Observability](#monitoring--observability)
-- [Troubleshooting](#troubleshooting)
-- [Cost Optimization](#cost-optimization)
-- [Cleanup](#cleanup)
-
----
-
-## Overview
-
-This POC demonstrates **dual workflow orchestration patterns** for AI agents:
-
-| Deployment | Type | Workflow Pattern | Configuration | Use Case |
-|------------|------|-----------------|---------------|----------|
-| **Container Apps** | Self-hosted | Programmatic (Python) | WorkflowOrchestrator class | Full control, custom logic |
-| **Foundry Workflow** | Managed service | Declarative (YAML) | agent.yaml + workflow.yaml | Rapid deployment, versioning |
+Both deployments use the shared **Weather API** service and the canonical environment variable `WEATHER_API_URL`.
 
 **Shared Components**:
 
@@ -55,10 +33,6 @@ This POC demonstrates **dual workflow orchestration patterns** for AI agents:
 
 - **Python 3.11+**
 - **uv** package manager: `curl -LsSf https://astral.sh/uv/install.sh | sh` (Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`)
-- **Azure Functions Core Tools** v4:
-  - Windows: `winget install Microsoft.Azure.FunctionsCoreTools` or `choco install azure-functions-core-tools`
-  - macOS: `brew tap azure/functions && brew install azure-functions-core-tools@4`
-  - Linux: Download from https://github.com/Azure/azure-functions-core-tools/releases
 - **Docker Desktop** (for Container Apps deployment)
 - **Git** for version control
 
@@ -106,7 +80,7 @@ uv sync --prerelease=allow
 Option 1: Azure Container Apps (Programmatic Workflow)
 ┌──────────┐    ┌────────────────────┐    ┌──────────────┐
 │  User    │───▶│  Container App     │───▶│   Weather    │
-│  (HTTP)  │    │  FastAPI Server    │    │   Function   │
+│  (HTTP)  │    │  FastAPI Server    │    │  Weather API │
 │          │◀───│  WorkflowOrchest   │◀───│   (Tool)     │
 └──────────┘    └────────────────────┘    └──────────────┘
                           │                        │
@@ -119,9 +93,9 @@ Option 1: Azure Container Apps (Programmatic Workflow)
 
 Option 2: Azure AI Foundry (Declarative Workflow)
 ┌──────────┐    ┌────────────────────┐    ┌──────────────┐
-│  User    │───▶│  Foundry Workflow  │───▶│   Weather    │
-│ (Portal/ │    │  agent.yaml +      │    │   Function   │
-│   API)   │◀───│  workflow.yaml     │◀───│   (Tool)     │
+│  User    │───▶│  Foundry Workflow  │───▶│  Weather API │
+│ (Portal/ │    │  agent.yaml +      │    │   (Tool)     │
+│   API)   │◀───│  workflow.yaml     │◀───│             │
 └──────────┘    └────────────────────┘    └──────────────┘
                           │                        │
                           └────────┬───────────────┘
@@ -131,11 +105,11 @@ Option 2: Azure AI Foundry (Declarative Workflow)
                          │  (Native)        │
                          └──────────────────┘
 
-Shared Weather Function (Tool for Both Workflows)
+Shared Weather API (Tool for Both Workflows)
 ┌──────────────┐      ┌─────────────────────┐
 │   Weather    │─────▶│  OpenWeatherMap API │
-│   Function   │      │  (External Service) │
-│   (Python)   │◀─────│                     │
+│  Weather API │      │  (External Service) │
+│  (FastAPI)   │◀─────│                     │
 └──────────────┘      └─────────────────────┘
 ```
 
@@ -150,8 +124,8 @@ Shared Weather Function (Tool for Both Workflows)
    └─ Duration: ~100ms
 
 2. Get Weather Data (depends on step 1)
-   ├─ Call Azure Function tool with zip code
-   ├─ Function queries OpenWeatherMap API
+    ├─ Call Weather API tool with zip code
+    ├─ Weather API queries OpenWeatherMap API
    ├─ Return: {temperature, conditions, wind, precipitation}
    └─ Duration: ~1-2 seconds
 
@@ -221,7 +195,7 @@ Copy-Item .env.example .env
 
 ### Step 2: Deploy Shared Infrastructure
 
-The shared infrastructure includes Application Insights, Log Analytics, and the Weather Function. These are used by both deployments.
+The shared infrastructure includes Application Insights, Log Analytics and the Weather API (FastAPI) hosted in ACA. These are used by both deployments.
 
 ```powershell
 # Navigate to deployment directory
@@ -246,7 +220,7 @@ if (-not $ENVIRONMENT_NAME) {
 # Create resource group
 az group create --name $AZURE_RESOURCE_GROUP --location $AZURE_LOCATION
 
-# Deploy shared infrastructure (App Insights + Weather Function)
+# Deploy shared infrastructure (App Insights) + Weather ACA
 az deployment group create `
     --resource-group $AZURE_RESOURCE_GROUP `
     --template-file ../shared/monitoring.bicep `
@@ -282,15 +256,7 @@ if ($envContent -match '^APPLICATIONINSIGHTS_CONNECTION_STRING=') {
     Add-Content $envPath "APPLICATIONINSIGHTS_CONNECTION_STRING=$APP_INSIGHTS_CS"
 }
 
-# Deploy Weather Function
-az deployment group create `
-    --resource-group $AZURE_RESOURCE_GROUP `
-    --template-file ../shared/function-app.bicep `
-    --parameters `
-        location=$AZURE_LOCATION `
-        environmentName=$ENVIRONMENT_NAME `
-        openWeatherMapApiKey=$OPENWEATHERMAP_API_KEY `
-        appInsightsConnectionString=$APP_INSIGHTS_CS
+# Weather API is deployed separately. Set WEATHER_API_URL in .env after deployment.
 ```
 
 ### Step 3: Build and Push Container Image
@@ -362,88 +328,9 @@ az containerapp logs show `
 
 ## Deployment Option 2: Azure AI Foundry Workflow
 
-### Step 1: Deploy Weather Function (if not already deployed)
+### Step 1: Ensure Weather API Endpoint
 
-If you haven't deployed the Weather Function from Option 1:
-
-```powershell
-Set-Location deploy/shared
-
-# Load variables from .env file (if not already loaded)
-Get-Content ../../.env | ForEach-Object {
-    if ($_ -match '^([^#][^=]+)=(.*)$') {
-        $varName = $matches[1].Trim()
-        $varValue = $matches[2].Trim()
-        Set-Variable -Name $varName -Value $varValue -Scope Global
-    }
-}
-
-# Deploy monitoring
-az deployment group create `
-    --resource-group $AZURE_RESOURCE_GROUP `
-    --template-file monitoring.bicep `
-    --parameters location=$AZURE_LOCATION environmentName=$ENVIRONMENT_NAME
-
-# Get App Insights connection string
-$APP_INSIGHTS_NAME = az monitor app-insights component list `
-    --resource-group $AZURE_RESOURCE_GROUP `
-    --query "[?starts_with(name, 'appi-weather-advisor')].name | [0]" `
-    -o tsv
-
-$APP_INSIGHTS_CS = az monitor app-insights component show `
-    --resource-group $AZURE_RESOURCE_GROUP `
-    --app $APP_INSIGHTS_NAME `
-    --query connectionString -o tsv
-
-# Save to .env (update if exists, add if not)
-$envPath = "../../.env"
-$envContent = Get-Content $envPath -ErrorAction SilentlyContinue
-if ($envContent -match '^APPLICATIONINSIGHTS_CONNECTION_STRING=') {
-    $envContent = $envContent -replace '^APPLICATIONINSIGHTS_CONNECTION_STRING=.*', "APPLICATIONINSIGHTS_CONNECTION_STRING=$APP_INSIGHTS_CS"
-    $envContent | Set-Content $envPath
-} else {
-    Add-Content $envPath "APPLICATIONINSIGHTS_CONNECTION_STRING=$APP_INSIGHTS_CS"
-}
-
-# Deploy Weather Function
-az deployment group create `
-    --resource-group $AZURE_RESOURCE_GROUP `
-    --template-file function-app.bicep `
-    --parameters `
-        location=$AZURE_LOCATION `
-        environmentName=$ENVIRONMENT_NAME `
-        openWeatherMapApiKey=$OPENWEATHERMAP_API_KEY `
-        appInsightsConnectionString=$APP_INSIGHTS_CS
-
-# Get function URL
-$WEATHER_FUNCTION_URL = az functionapp show `
-    --resource-group $RESOURCE_GROUP `
-    --name func-weather-dev-* `
-    --query defaultHostName -o tsv
-$WEATHER_FUNCTION_URL = "https://$WEATHER_FUNCTION_URL/api/get_weather"
-```
-
-### Step 2: Deploy Weather Function Code
-
-```powershell
-Set-Location ../../src/function
-
-# Create local.settings.json
-@"
-{
-  "IsEncrypted": false,
-  "Values": {
-    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-    "FUNCTIONS_WORKER_RUNTIME": "python",
-    "OPENWEATHERMAP_API_KEY": "$OPENWEATHERMAP_API_KEY",
-    "APPLICATIONINSIGHTS_CONNECTION_STRING": "$APP_INSIGHTS_CS"
-  }
-}
-"@ | Out-File -FilePath local.settings.json -Encoding utf8
-
-# Deploy function code
-func azure functionapp publish func-weather-dev-<suffix> --python
-```
+Set `WEATHER_API_URL` in your `.env` file to the deployed weather API endpoint.
 
 ### Step 3: Configure Foundry Environment
 
@@ -454,7 +341,7 @@ Set-Location ../agent-foundry
 @"
 AZURE_AI_PROJECT_ENDPOINT=https://your-project.cognitiveservices.azure.com/
 AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4
-WEATHER_FUNCTION_URL=$WEATHER_FUNCTION_URL
+WEATHER_API_URL=$WEATHER_API_URL
 APPLICATIONINSIGHTS_CONNECTION_STRING=$APP_INSIGHTS_CS
 ENVIRONMENT=production
 "@ | Out-File -FilePath .env -Encoding utf8
@@ -676,7 +563,7 @@ traces
 | render timechart
 ```
 
-**2. Weather Function Calls**
+**2. Weather API Calls**
 
 ```kql
 dependencies
@@ -723,7 +610,7 @@ Create a custom dashboard in Azure Portal with these tiles:
 2. **Response Time** - P95 and P99 response times
 3. **Success Rate** - Percentage of successful requests
 4. **Error Rate** - Errors per hour by type
-5. **Tool Calls** - get_weather function invocations
+5. **Tool Calls** - get_weather API invocations
 6. **Compliance** - SC-002 recommendation count compliance
 
 ### Alerts
@@ -747,10 +634,10 @@ az monitor metrics alert create `
     --window-size 5m `
     --evaluation-frequency 1m
 
-# Alert 3: Weather Function failures
+# Alert 3: Weather API failures
 az monitor metrics alert create `
     --resource-group $RESOURCE_GROUP `
-    --name "Weather Function Failures" `
+    --name "Weather API Failures" `
     --condition "count dependencies where success == false > 5" `
     --window-size 5m `
     --evaluation-frequency 1m
@@ -796,8 +683,8 @@ az containerapp update `
 # Check health endpoint
 Invoke-RestMethod -Uri "https://$CONTAINER_APP_URL/health"
 
-# Verify Weather Function is accessible
-Invoke-RestMethod -Uri "$WEATHER_FUNCTION_URL?zip_code=10001"
+# Verify Weather API is accessible
+Invoke-RestMethod -Uri "$WEATHER_API_URL?zip_code=10001"
 ```
 
 **Problem**: Slow response times
@@ -832,14 +719,14 @@ python deploy_workflow.py deploy
 **Problem**: Tool execution failures
 
 ```powershell
-# Verify Weather Function URL is accessible
-Invoke-RestMethod -Uri "$WEATHER_FUNCTION_URL?zip_code=10001"
+# Verify Weather API URL is accessible
+Invoke-RestMethod -Uri "$WEATHER_API_URL?zip_code=10001"
 
 # Check agent configuration
 cat agent.yaml | grep -A5 "tools:"
 
 # Update agent with correct URL
-# 1. Edit agent.yaml with correct WEATHER_FUNCTION_URL
+# 1. Edit agent.yaml with correct WEATHER_API_URL
 # 2. python deploy_workflow.py update --agent-id $AGENT_ID
 ```
 
@@ -860,7 +747,7 @@ python deploy_workflow.py validate
 # - Verify path: ../../specs/001-.../agent-prompts.md exists
 ```
 
-### Weather Function Issues
+### Weather API Issues
 
 **Problem**: OpenWeatherMap API errors
 
@@ -873,29 +760,16 @@ Invoke-RestMethod -Uri "https://api.openweathermap.org/data/2.5/weather?zip=1000
 # 2. Rate limit exceeded (1000 calls/day on free tier)
 # 3. Invalid zip code format
 
-# Check function logs
-func azure functionapp logstream func-weather-dev-<suffix>
-```
-
-**Problem**: Function cold start delays
-
-```bash
-# Enable Always On (requires Premium plan)
-az functionapp config set `
-    --resource-group $RESOURCE_GROUP `
-    --name func-weather-dev-* `
-    --always-on true
-
-# Or switch to Premium plan
-az functionapp plan update `
-    --resource-group $RESOURCE_GROUP `
-    --name asp-weather-dev-* `
-    --sku P1V2
+# Check Weather API logs
+az containerapp logs show \
+    --resource-group $AZURE_RESOURCE_GROUP \
+    --name ca-weather-api-dev-* \
+    --follow
 ```
 
 ### Network & Connectivity
 
-**Problem**: Cannot reach Weather Function from agent
+**Problem**: Cannot reach Weather API from agent
 
 ```powershell
 # Test network connectivity
@@ -903,15 +777,9 @@ az functionapp plan update `
 az containerapp exec `
     --resource-group $AZURE_RESOURCE_GROUP `
     --name ca-weather-advisor-dev-* `
-    --command "curl $WEATHER_FUNCTION_URL?zip_code=10001"
+    --command "curl $WEATHER_API_URL?zip_code=10001"
 
-# Check function app networking
-az functionapp config access-restriction list `
-    --resource-group $RESOURCE_GROUP `
-    --name func-weather-dev-*
-
-# Ensure function allows traffic from Container Apps
-# Add Container Apps VNet to function app allowed networks if needed
+# Ensure the Weather API endpoint is reachable from the Container App network
 ```
 
 ---
@@ -923,7 +791,6 @@ az functionapp config access-restriction list `
 | Component | Tier | Estimated Cost |
 |-----------|------|----------------|
 | **Container Apps** | Consumption | $5-20/month (depends on usage) |
-| **Azure Functions** | Consumption | $0-5/month (1M executions free) |
 | **Application Insights** | Standard | $2-10/month (1GB/month free) |
 | **Log Analytics** | Pay-as-you-go | $2-5/month |
 | **Azure AI Foundry** | Pay-per-use | $10-50/month (depends on model usage) |
@@ -977,7 +844,7 @@ az containerapp delete `
     --name ca-weather-advisor-dev-* `
     --yes
 
-# Keep shared resources (function, monitoring) for Foundry deployment
+# Keep shared resources (monitoring) for Foundry deployment
 ```
 
 ### Remove Foundry Deployment Only
@@ -1007,7 +874,6 @@ az group show --name $RESOURCE_GROUP
 ```powershell
 # Delete only specific resources
 az containerapp delete --resource-group $AZURE_RESOURCE_GROUP --name ca-weather-advisor-dev-* --yes
-az functionapp delete --resource-group $AZURE_RESOURCE_GROUP --name func-weather-dev-* --yes
 az monitor app-insights component delete --resource-group $AZURE_RESOURCE_GROUP --app appi-weather-advisor-dev-*
 
 # Keep resource group and other resources
@@ -1037,7 +903,6 @@ After successful deployment:
 - **Azure Documentation**:
   - [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/)
   - [Azure AI Foundry](https://learn.microsoft.com/azure/ai-foundry/)
-  - [Azure Functions](https://learn.microsoft.com/azure/azure-functions/)
   - [Application Insights](https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview)
 
 ---

@@ -23,19 +23,18 @@
 - ✅ Success criteria defined
 
 ### 3. Repository Cleaned Up
-- ✅ Removed `Dockerfile.function`
-- ✅ Removed `deploy/shared/function-app.bicep`
-- ✅ Removed `deploy/shared/deploy-function-code.ps1`
-- ✅ Added `src/function/` to .gitignore
-- ✅ Updated README.md to reflect two-container architecture
-- ✅ Updated DEPLOYMENT.md to remove function references
+- ✅ Removed legacy Dockerfile
+- ✅ Removed legacy Bicep templates for function hosting
+- ✅ Removed legacy deploy script
+- ✅ Added legacy weather service folder to .gitignore
+- ✅ Updated DEPLOYMENT.md to remove legacy references
 - ✅ Updated deploy/container-app/README.md
 
 ### 4. Documentation Aligned
 All documentation now accurately reflects:
 - **Current Architecture**: Agent Container + Weather API Container (internal networking)
 - **Planned Architecture**: Foundry Agent + Weather API Container (external HTTPS)
-- **Removed References**: All Azure Function mentions eliminated
+- **Removed References**: All legacy function mentions eliminated
 
 ---
 
@@ -195,7 +194,7 @@ Invoke-RestMethod -Uri "https://ca-weather-api-dev-ezbvua.mangomushroom-3560f614
 ### Key Findings from Research
 
 **1. OpenAPI Tool Pattern is Preferred**
-- Simpler than Azure Functions for HTTP endpoints
+- Simpler than legacy function-based HTTP endpoints
 - Foundry natively supports OpenAPI 3.0 specifications
 - Three auth types: anonymous, API key, managed identity
 
@@ -231,8 +230,8 @@ agent = client.agents.create(
 ## 🔍 Context Reset Achieved
 
 ### What Was Removed
-- All Azure Function deployment code and configuration
-- References to function apps in documentation
+- Legacy function deployment code and configuration
+- References to legacy endpoint apps in documentation
 - Obsolete deployment scripts
 - Function-related Bicep templates
 

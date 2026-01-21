@@ -111,16 +111,15 @@ class FoundryAgentRegistration:
             openapi_spec = self.load_openapi_spec()
 
             # Create OpenAPI tool definition for Foundry
-            # Foundry supports OpenAPI 3.0 tools for external HTTP APIs
+            # Based on Microsoft Learn documentation format
             tool_definition = {
                 "type": "openapi",
                 "openapi": {
                     "name": "get_weather",
                     "description": "Retrieve current weather data for a US zip code including temperature, conditions, humidity, wind speed, and precipitation",
                     "spec": openapi_spec,
-                    "operation_id": "getWeather",  # From OpenAPI spec paths./api/weather.get.operationId
-                    "authentication": {
-                        "type": "none"  # Weather API uses anonymous access
+                    "auth": {
+                        "type": "anonymous"  # Anonymous authentication for public weather API
                     }
                 }
             }
@@ -225,7 +224,8 @@ class FoundryAgentRegistration:
             List of agent objects
         """
         try:
-            agents = self.client.agents.list_agents()
+            agents_paged = self.client.agents.list_agents()
+            agents = list(agents_paged)  # Convert ItemPaged to list
             logger.info(f"Found {len(agents)} registered agents")
             return agents
         except Exception as e:

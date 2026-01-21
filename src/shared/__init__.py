@@ -5,7 +5,7 @@ from .models import (
     WeatherData,
     ClothingItem,
     ClothingRecommendation,
-    WeatherFunctionError,
+    WeatherApiError,
     ClothingCategory,
 )
 
@@ -33,7 +33,7 @@ __all__ = [
     "WeatherData",
     "ClothingItem",
     "ClothingRecommendation",
-    "WeatherFunctionError",
+    "WeatherApiError",
     "ClothingCategory",
     # Constants and helpers
     "classify_temperature",

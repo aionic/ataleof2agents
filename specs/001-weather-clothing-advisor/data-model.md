@@ -8,7 +8,7 @@
 
 ## Overview
 
-This document defines the data models used by the Weather-Based Clothing Advisor POC. All models are designed to be simple, JSON-serializable structures suitable for API communication between the Azure Function tool and the AI agent.
+This document defines the data models used by the Weather-Based Clothing Advisor POC. All models are designed to be simple, JSON-serializable structures suitable for API communication between the Weather API tool and the AI agent.
 
 **Design Philosophy** (Per POC Constitution):
 - Simple data classes/dicts (no complex ORM or database models)
@@ -79,7 +79,7 @@ class Location:
 
 Represents current weather conditions for a location, sourced from OpenWeatherMap API.
 
-**Purpose**: Response from weather function tool, input to clothing recommendation logic
+**Purpose**: Response from Weather API tool, input to clothing recommendation logic
 
 **Fields**:
 
@@ -383,9 +383,9 @@ class ClothingRecommendation:
 
 ## API Error Responses
 
-### WeatherFunctionError
+### WeatherApiError
 
-Represents an error response from the weather function tool.
+Represents an error response from the Weather API tool.
 
 **Purpose**: Structured error handling for invalid inputs or API failures
 
@@ -466,7 +466,7 @@ User Input (Zip Code String)
     ↓
 Location { zip_code: "10001" }
     ↓
-Azure Function (Weather Tool)
+Weather API (Weather Tool)
     ↓
 OpenWeatherMap API
     ↓
@@ -476,7 +476,7 @@ WeatherData { temperature: 72, conditions: "clear", ... }
 ### 2. Weather Data → Clothing Recommendations
 
 ```text
-WeatherData (from function tool)
+WeatherData (from Weather API tool)
     ↓
 AI Agent (with instructions + logic)
     ↓
@@ -492,9 +492,9 @@ ClothingRecommendation {
 ```text
 Invalid Zip Code Input
     ↓
-Function Validation
+Weather API Validation
     ↓
-WeatherFunctionError { error_code: "INVALID_ZIP", ... }
+WeatherApiError { error_code: "INVALID_ZIP", ... }
     ↓
 Agent interprets error and provides user-friendly message
 ```

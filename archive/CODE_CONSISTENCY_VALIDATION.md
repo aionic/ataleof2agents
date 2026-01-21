@@ -11,7 +11,7 @@
 - Identical agent instructions
 - Identical tool definitions
 - Identical data models and constants
-- Identical weather function
+- Identical weather API
 
 **The ONLY differences are deployment-specific infrastructure code**, which is necessary and expected.
 
@@ -43,7 +43,7 @@
 
 ### 2. Tool Definition ✅
 
-**Location**: `specs/001-weather-clothing-advisor/contracts/weather-function-tool.json`
+**Location**: `specs/001-weather-clothing-advisor/contracts/weather-api-tool.json`
 
 **Tool Schema**:
 ```json
@@ -85,12 +85,12 @@
 - `WeatherData`: temperature, conditions, humidity, wind, precipitation
 - `ClothingItem`: category, item, reasoning
 - `ClothingRecommendation`: location, weather, items, total_recommendations
-- `WeatherFunctionError`: error_code, message, details
+- `WeatherApiError`: error_code, message, details
 
 **Usage**:
 - **Container Apps**: Imported by workflow_orchestrator.py (indirectly via agent_service)
-- **Foundry**: Used by weather function, available to agent via tool responses
-- **Weather Function**: Directly imported and used for API responses
+- **Foundry**: Used by Weather API, available to agent via tool responses
+- **Weather API**: Directly imported and used for API responses
 
 **Validation**: ✅ **100% Identical** - Shared module used by both deployments
 
@@ -109,21 +109,21 @@
 
 **Usage**:
 - **Container Apps**: Imported by agent_service.py (SC_001) and workflow_orchestrator.py
-- **Foundry**: Available via shared module (indirectly through weather function)
-- **Weather Function**: Imported for temperature classification and API config
+- **Foundry**: Available via shared module (indirectly through Weather API)
+- **Weather API**: Imported for temperature classification and API config
 
 **Validation**: ✅ **100% Identical** - Shared module used by both deployments
 
 ---
 
-### 5. Weather Function (Tool Implementation) ✅
+### 5. Weather API (Tool Implementation) ✅
 
-**Location**: `src/function/` directory
+**Location**: `src/weather-api/` directory
 
 **Files**:
 - `weather_service.py`: OpenWeatherMap API client
-- `function_app.py`: Azure Function HTTP trigger
-- `host.json`: Azure Functions v2 configuration
+- `app.py`: Weather API endpoint
+- `.env.example`: Weather API configuration
 
 **Logic**:
 - Validates zip code format (5 digits)
@@ -135,7 +135,7 @@
 - **Container Apps**: Agent calls via `_call_weather_function()` in agent_service.py
 - **Foundry**: Agent calls via registered HTTP tool (same function URL)
 
-**Validation**: ✅ **100% Identical** - Same Azure Function used by both deployments
+**Validation**: ✅ **100% Identical** - Same Weather API used by both deployments
 
 ---
 
@@ -213,7 +213,7 @@ These files are **intentionally different** and handle Container Apps deployment
    - **Key Features**:
      - Loads agent instructions (same source as Foundry)
      - Registers get_weather tool with Azure Agent Framework SDK
-     - `_call_weather_function()`: HTTP client to call weather function
+    - `_call_weather_api()`: HTTP client to call Weather API
      - `process_message()`: Async message processing
      - Session management in memory
    - **Why Different**: Container Apps manages agent lifecycle in-process
@@ -347,7 +347,7 @@ def register_agent(self, agent_name: str = "WeatherClothingAdvisor") -> str:
 
 def _call_weather_function(self, zip_code: str) -> Dict[str, Any]:
     response = requests.get(
-        self.weather_function_url,
+        self.weather_api_url,
         params={"zip_code": zip_code},
         timeout=SC_001_RESPONSE_TIME_SECONDS
     )
@@ -363,13 +363,13 @@ tool_definition = {
     "type": "function",
     "function": {
         "name": "get_weather",
-        "url": self.weather_function_url,  # Same function
+        "url": self.weather_api_url,  # Same weather API
         "parameters": {...}  # Same schema
     }
 }
 ```
 
-**Analysis**: ✅ Both call the **same Azure Function** at the **same URL** with the **same parameters**
+**Analysis**: ✅ Both call the **same Weather API** at the **same URL** with the **same parameters**
 
 ---
 
@@ -488,8 +488,8 @@ workflow:
 | Component | Container Apps | Foundry | Status |
 |-----------|----------------|---------|--------|
 | Agent Instructions | agent-prompts.md | agent-prompts.md | ✅ Identical |
-| Tool Definition | weather-function-tool.json | weather-function-tool.json | ✅ Identical |
-| Tool Implementation | Azure Function | Azure Function | ✅ Identical |
+| Tool Definition | weather-api-tool.json | weather-api-tool.json | ✅ Identical |
+| Tool Implementation | Weather API | Weather API | ✅ Identical |
 | Data Models | src/shared/models.py | src/shared/models.py | ✅ Identical |
 | Constants | src/shared/constants.py | src/shared/constants.py | ✅ Identical |
 | Temperature Ranges | Same 5 ranges | Same 5 ranges | ✅ Identical |
@@ -524,8 +524,8 @@ workflow:
 
 ### Core Agent Code is Identical:
 1. **Agent instructions**: Both load from `specs/001-weather-clothing-advisor/contracts/agent-prompts.md`
-2. **Tool definition**: Both use same schema from `weather-function-tool.json`
-3. **Tool implementation**: Both call the same Azure Function
+2. **Tool definition**: Both use same schema from `weather-api-tool.json`
+3. **Tool implementation**: Both call the same Weather API
 4. **Data models**: Both use `src/shared/models.py`
 5. **Constants**: Both use `src/shared/constants.py`
 6. **Configuration**: Both use agent.yaml and workflow.yaml with 99% identical content

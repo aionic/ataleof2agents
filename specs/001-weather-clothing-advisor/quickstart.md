@@ -19,7 +19,7 @@ Before testing, ensure you have:
 3. **Azure CLI**: Installed and authenticated (`az login`)
 4. **Python 3.11**: Installed locally for testing
 5. **Deployed Resources**:
-   - Azure Function (weather API tool) deployed and accessible
+   - Weather API service deployed and accessible
    - Agent deployment (either Container Apps OR Azure AI Foundry)
 
 ## Test Scenarios
@@ -203,7 +203,7 @@ Use these zip codes for comprehensive testing:
 4. Pass if <5 seconds
 
 **Expected**:
-- Function cold start: 2-3 seconds
+- Weather API cold start: 2-3 seconds
 - Weather API call: 1-2 seconds
 - Agent processing: 1-2 seconds
 - **Total: 4-6 seconds typical (within 5s goal for most cases)**
@@ -283,13 +283,13 @@ Per user requirements, test BOTH deployment methods:
 **Test Steps**:
 1. Open agent chat interface or call API
 2. Send message: "What should I wear? Zip code 10001"
-3. Verify agent calls weather function tool
+3. Verify agent calls weather API tool
 4. Verify recommendations display
 5. Test all user stories above
 
 **Foundry-Specific Checks**:
 - [ ] Agent thread persists across multiple messages
-- [ ] Function tool calls visible in Foundry dashboard
+- [ ] Weather API tool calls visible in Foundry dashboard
 - [ ] Agent instructions followed correctly
 - [ ] Model responses are consistent with prompts
 
@@ -337,7 +337,7 @@ Per user requirements, test BOTH deployment methods:
    - Expected: Traces showing agent initialization and tool calls
    - Pass: Agent operations visible in telemetry
 
-3. **Verify Function Tool Calls**:
+3. **Verify Weather API Tool Calls**:
    ```kql
    dependencies
    | where timestamp > ago(1h)
@@ -345,7 +345,7 @@ Per user requirements, test BOTH deployment methods:
    | project timestamp, name, target, duration, success
    | order by timestamp desc
    ```
-   - Expected: HTTP calls to weather function and OpenWeatherMap API
+   - Expected: HTTP calls to weather API and OpenWeatherMap API
    - Pass: Distributed tracing captures full request path
 
 #### Foundry Agent Telemetry Validation
@@ -406,7 +406,7 @@ Per user requirements, test BOTH deployment methods:
 
 4. **Distributed Tracing** (Container Apps only):
    - Execute request through Container Apps
-   - Show end-to-end trace: agent → function → external API
+   - Show end-to-end trace: agent → weather API → external API
    - Verify trace correlation IDs link operations
 
 **Telemetry Troubleshooting**:
@@ -423,10 +423,10 @@ Per user requirements, test BOTH deployment methods:
 - Check: Custom dimensions set with `deployment_type` property
 - Fix: Add tags during agent initialization or request processing
 
-**Issue**: Function calls not visible in telemetry
+**Issue**: Weather API calls not visible in telemetry
 
-- Check: Function app has Application Insights enabled
-- Check: Function integration successful (test function logs)
+- Check: Weather API app has Application Insights enabled
+- Check: Weather API integration successful (test Weather API logs)
 - Check: Dependencies tracked (HTTP client instrumentation enabled)
 
 ---
@@ -485,13 +485,13 @@ Complete this checklist for each deployment:
 
 **Possible Causes**:
 - Weather API key not configured
-- Azure Function not deployed or not running
+- Weather API not deployed or not running
 - Network connectivity issues
 
 **Resolution Steps**:
-1. Check function logs in Azure portal
+1. Check Weather API logs in Azure portal
 2. Verify API key is valid: `curl "https://api.openweathermap.org/data/2.5/weather?zip=10001,US&appid={YOUR_KEY}"`
-3. Test function endpoint directly (if exposed)
+3. Test Weather API endpoint directly (if exposed)
 4. Check environment variables in deployment
 
 ### Issue: Recommendations seem incorrect
@@ -510,12 +510,12 @@ Complete this checklist for each deployment:
 ### Issue: Slow response times (>5 seconds)
 
 **Possible Causes**:
-- Function cold start
+- Weather API cold start
 - Weather API slow response
 - Agent model processing delay
 
 **Resolution Steps**:
-1. Check function cold start time (first request vs subsequent)
+1. Check Weather API cold start time (first request vs subsequent)
 2. Test weather API directly for response time
 3. Consider using faster model (gpt-4o-mini)
 4. Check network latency to Sweden Central
@@ -528,7 +528,7 @@ Complete this checklist for each deployment:
 - Resource limits exceeded
 
 **Resolution Steps**:
-1. Check application logs (Container Apps or Function logs)
+1. Check application logs (Container Apps or Weather API logs)
 2. Verify all dependencies installed correctly
 3. Review environment variable configuration
 4. Check resource quota limits
@@ -571,7 +571,7 @@ Use this script for demonstrating the POC:
 1. **Container Apps** - Containerized deployment with auto-scaling
 2. **Azure AI Foundry** - Managed agent service with built-in hosting
 
-Both use the same weather function tool and produce identical recommendations, showcasing Azure's flexibility for agent deployment."
+Both use the same weather API tool and produce identical recommendations, showcasing Azure's flexibility for agent deployment."
 
 ### Closing
 

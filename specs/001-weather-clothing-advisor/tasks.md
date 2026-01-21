@@ -31,23 +31,22 @@
 
 **Purpose**: Core shared infrastructure that MUST be complete before ANY user story can be implemented
 
-**⚠️ CRITICAL**: No user story work can begin until this phase is complete - the weather function blocks all agent work
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete - the weather API blocks all agent work
 
 ### Shared Code (Required by All Components)
 
-- [ ] T005 [P] Create src/shared/models.py with Location, WeatherData, ClothingItem, ClothingRecommendation, WeatherFunctionError dataclasses
+- [ ] T005 [P] Create src/shared/models.py with Location, WeatherData, ClothingItem, ClothingRecommendation, WeatherApiError dataclasses
 - [ ] T006 [P] Create src/shared/constants.py with temperature ranges, clothing categories, API configuration constants
 
-### Weather Function Tool (Blocks US1, US2, US3)
+### Weather API Service (Blocks US1, US2, US3)
 
-- [ ] T007 Create src/function/ directory structure per plan.md
-- [ ] T008 Create src/function/host.json with Azure Functions v2 configuration
-- [ ] T009 Create src/function/weather_service.py with OpenWeatherMap API client class
-- [ ] T010 Implement src/function/function_app.py with HTTP trigger for get_weather tool
-- [ ] T011 Generate src/function/requirements.txt from pyproject.toml using uv
-- [ ] T012 Create src/function/.env.example with OPENWEATHERMAP_API_KEY
+- [ ] T007 Create src/weather-api/ directory structure per plan.md
+- [ ] T008 Create src/weather-api/app.py with FastAPI endpoint for get_weather tool
+- [ ] T009 Create src/weather-api/weather_service.py with OpenWeatherMap API client class
+- [ ] T010 Generate src/weather-api/requirements.txt from pyproject.toml using uv
+- [ ] T011 Create src/weather-api/.env.example with OPENWEATHERMAP_API_KEY
 
-**Checkpoint**: Foundation ready - weather function must be testable before proceeding to user stories
+**Checkpoint**: Foundation ready - weather API must be testable before proceeding to user stories
 
 ---
 
@@ -67,7 +66,7 @@
 - [ ] T018 [US1] Implement src/agent-foundry/agent_config.py to configure AzureAIAgentClient with get_weather tool
 - [ ] T019 [US1] Load agent instructions from contracts/agent-prompts.md in both agent implementations
 - [ ] T020 [US1] Implement basic request handler in src/agent-container/app.py for zip code input
-- [ ] T020a [US1] Configure HTTP request timeouts for weather function calls (3 sec per spec performance goal)
+- [ ] T020a [US1] Configure HTTP request timeouts for weather API calls (3 sec per spec performance goal)
 - [ ] T020b [US1] Add response time logging for SC-001 validation (<5 sec end-to-end)
 - [ ] T021 [US1] Implement agent invocation logic to call get_weather tool and display weather data
 - [ ] T022 [P] [US1] Create src/agent-container/.env.example with agent configuration variables
@@ -125,9 +124,8 @@
 - [ ] T039 Generate src/agent-container/requirements.txt from pyproject.toml using uv
 - [ ] T040 [P] Create src/deployments/container-app/ directory structure per plan.md
 - [ ] T041 [P] Create src/deployments/container-app/README.md with deployment walkthrough
-- [ ] T042 Create src/deployments/container-app/deploy.sh with deployment commands for Container Apps + Function
+- [ ] T042 Create src/deployments/container-app/deploy.sh with deployment commands for Container Apps + Weather API
 - [ ] T043 Create src/deployments/container-app/bicep/monitoring.bicep for Application Insights resource
-- [ ] T044 Create src/deployments/container-app/bicep/function-app.bicep for Function App resource
 - [ ] T045 Create src/deployments/container-app/bicep/container-app.bicep for Container Apps resources
 - [ ] T046 Create src/deployments/container-app/bicep/main.bicep to orchestrate all resources in Sweden Central
 - [ ] T047 Implement src/agent-container/telemetry.py with azure-monitor-opentelemetry integration
@@ -147,7 +145,6 @@
 - [ ] T052 Generate src/agent-foundry/requirements.txt from pyproject.toml using uv
 - [ ] T053 Create src/deployments/foundry-agent/deploy.sh with agent registration commands
 - [ ] T054 Create src/deployments/foundry-agent/bicep/monitoring.bicep for Application Insights resource (shared)
-- [ ] T055 Create src/deployments/foundry-agent/bicep/function-app.bicep for Function App resource (same as T044)
 - [ ] T056 Create src/deployments/foundry-agent/bicep/ai-foundry.bicep for Azure AI Foundry workspace and project
 - [ ] T057 Create src/deployments/foundry-agent/bicep/main.bicep to orchestrate all resources in Sweden Central
 - [ ] T058 Implement agent registration logic in src/agent-foundry/register_agent.py with tool and instruction upload
@@ -169,7 +166,7 @@
 - [ ] T065 Verify SC-002 (3-5 recommendations) across temperature ranges
 - [ ] T066 Verify SC-004 (understandable recommendations) with sample output review
 - [ ] T067 Verify SC-005 (extreme conditions) by testing edge case zip codes from quickstart.md
-- [ ] T068 [P] Create tests/manual/test_function.py with direct function invocation examples
+- [ ] T068 [P] Create tests/manual/test_weather_api.py with direct Weather API invocation examples
 - [ ] T069 [P] Create tests/manual/test_agent.py with agent conversation test scenarios
 - [ ] T070 Update root README.md with architecture diagram links and quickstart reference
 - [ ] T071 Run through quickstart.md validation for Container Apps deployment
@@ -186,7 +183,7 @@
 
 - **Phase 1 (Setup)**: No dependencies - can start immediately
 - **Phase 2 (Foundational)**: Depends on Phase 1 completion - BLOCKS all user stories
-  - ⚠️ **Weather function (T007-T012) is critical path** - must work before agents can be built
+   - ⚠️ **Weather API (T007-T011) is critical path** - must work before agents can be built
 - **Phase 3 (US1)**: Depends on Phase 2 completion - Basic weather lookup enables all future work
 - **Phase 4 (US2)**: Depends on Phase 3 completion - Recommendations build on weather lookup
 - **Phase 5 (US3)**: Depends on Phase 3 completion (independent of US2 - could parallelize)
@@ -241,7 +238,7 @@ graph TD
 
 **Maximum Parallelization Scenario** (with sufficient team capacity):
 
-1. **After Phase 1**: All Phase 2 tasks T005-T006 (shared code) can run while T007-T012 (function) progresses
+1. **After Phase 1**: All Phase 2 tasks T005-T006 (shared code) can run while T007-T011 (weather API) progresses
 2. **After Phase 2**:
    - T013-T014 (directory setup)
    - T015-T016 (agent scaffolding)
@@ -299,11 +296,11 @@ T050-T060  # Registration, Bicep, telemetry
 
 **Minimum Viable POC**:
 - Phase 1: Setup ✅
-- Phase 2: Foundational (Weather Function) ✅
+- Phase 2: Foundational (Weather API) ✅
 - Phase 3: User Story 1 (Weather Lookup) ✅
 - Phase 6: Container Apps Deployment (choose one deployment first) ✅
 
-**Why This MVP**: Demonstrates the core value proposition with one complete deployment path. User can enter zip code and get weather data via a deployed agent calling an Azure Function.
+**Why This MVP**: Demonstrates the core value proposition with one complete deployment path. User can enter zip code and get weather data via a deployed agent calling the Weather API.
 
 **Timeline Estimate**: ~2-3 days for single developer
 
@@ -328,7 +325,7 @@ The fastest path to a working demo:
 ```
 Setup (T001-T004)
   → Shared Models (T005-T006)
-  → Weather Function (T007-T012) ⚠️ CRITICAL
+   → Weather API (T007-T011) ⚠️ CRITICAL
   → Container Agent Basic (T013-T023)
   → Container Deployment (T038-T049)
   → Manual Testing per quickstart.md
@@ -366,8 +363,8 @@ Setup (T001-T004)
 After each phase, validate against quickstart.md:
 
 **After Phase 2 (Foundational)**:
-- [ ] Weather function returns valid WeatherData JSON for zip 10001
-- [ ] Function handles invalid zip 00000 with proper error response
+- [ ] Weather API returns valid WeatherData JSON for zip 10001
+- [ ] Weather API handles invalid zip 00000 with proper error response
 
 **After Phase 3 (US1 - Weather Lookup)**:
 - [ ] Agent displays temperature, conditions, humidity, wind speed

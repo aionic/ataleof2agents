@@ -112,10 +112,10 @@ server:
 
 # Integration with Azure resources
 azure:
-  # Weather Function
+  # Weather API
   functions:
     - name: get_weather
-      endpoint: ${WEATHER_FUNCTION_URL}
+      endpoint: ${WEATHER_API_URL}
       timeout_seconds: 3
 
   # Application Insights

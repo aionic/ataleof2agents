@@ -6,12 +6,12 @@
 
 ## Summary
 
-Build a POC AI agent that accepts a US zip code, retrieves current weather data via an Azure Function tool, and provides personalized clothing recommendations. The solution demonstrates **two deployment architectures** on Azure:
+Build a POC AI agent that accepts a US zip code, retrieves current weather data via a Weather API tool, and provides personalized clothing recommendations. The solution demonstrates **two deployment architectures** on Azure:
 
-1. **Container Apps Deployment**: Agent + Function deployed as containers with Azure AI Foundry telemetry
-2. **Foundry Agent Service Deployment**: Agent hosted by managed service + Function with Azure AI Foundry telemetry
+1. **Container Apps Deployment**: Agent + Weather API deployed as containers with Azure AI Foundry telemetry
+2. **Foundry Agent Service Deployment**: Agent hosted by managed service + Weather API with Azure AI Foundry telemetry
 
-**Technical Approach**: Python 3.11 with Azure Agent Framework SDK for agent logic, Azure Functions v2 (Python) for weather API tool, OpenWeatherMap API for weather data, uv for package management, deployed to Sweden Central region. Both deployments integrate with Azure AI Foundry for observability and tracing.
+**Technical Approach**: Python 3.11 with Azure Agent Framework SDK for agent logic, FastAPI Weather API service for weather data, OpenWeatherMap API for weather data source, uv for package management, deployed to Sweden Central region. Both deployments integrate with Azure AI Foundry for observability and tracing.
 
 **POC Focus**: Demonstrate dual deployment patterns, agent-function integration, and Foundry telemetry - NOT production-grade error handling or enterprise features.
 
@@ -25,7 +25,6 @@ Build a POC AI agent that accepts a US zip code, retrieves current weather data 
 
 - `agent-framework` (≥0.1.0) - Core Azure Agent Framework
 - `agent-framework-azure-ai` (≥0.1.0) - Azure AI Foundry integration
-- `azure-functions` (≥1.20.0) - Azure Functions v2 Python worker
 - `fastapi` (≥0.109.0) - Web framework for Container Apps agent
 - `uvicorn` (≥0.27.0) - ASGI server for FastAPI
 - `requests` (≥2.31.0) - HTTP client for OpenWeatherMap API
@@ -38,12 +37,11 @@ Build a POC AI agent that accepts a US zip code, retrieves current weather data 
 
 **Target Platform**: Azure (Sweden Central region)
 
-- Azure Functions (Consumption or Flex plan)
 - Azure Container Apps (for agent deployment #1)
 - Azure AI Foundry Agent Service (for agent deployment #2)
 - Azure Application Insights (telemetry backend for both deployments)
 
-**Project Type**: Multi-component hybrid (shared function + dual agent deployments)
+**Project Type**: Multi-component hybrid (shared Weather API + dual agent deployments)
 
 **Performance Goals**: <5 seconds end-to-end response time (SC-001: weather fetch + agent processing)
 
@@ -90,7 +88,7 @@ Build a POC AI agent that accepts a US zip code, retrieves current weather data 
 
 - All technology decisions in [research.md](research.md) cite authoritative sources:
   - Azure Agent Framework: Microsoft Learn documentation
-  - Azure Functions Python v2: Official Microsoft docs
+  - Weather API service (FastAPI): Implementation notes
   - Azure Container Apps: Microsoft Learn tutorials
   - Azure AI Foundry: Official agent service documentation
   - uv package manager: Context7 documentation (official Astral docs)
@@ -99,7 +97,7 @@ Build a POC AI agent that accepts a US zip code, retrieves current weather data 
 **Documentation Checkpoints Completed**:
 
 - ✅ Agent Framework best practices reviewed (Durable Agents patterns)
-- ✅ Azure Functions Python v2 decorators and triggers documented
+- ✅ Weather API service design documented
 - ✅ Container Apps deployment workflows researched
 - ✅ Foundry Agent Service registration patterns reviewed
 - ✅ Application Insights telemetry integration documented
@@ -139,7 +137,7 @@ specs/001-weather-clothing-advisor/
 ├── data-model.md        # Phase 1 output - entity definitions and schemas
 ├── quickstart.md        # Phase 1 output - manual testing guide
 ├── contracts/           # Phase 1 output - function tool + agent prompts
-│   ├── weather-function-tool.json
+│   ├── weather-api-tool.json
 │   └── agent-prompts.md
 └── tasks.md             # Phase 2 output (/speckit.tasks command - pending)
 ```
@@ -152,11 +150,11 @@ src/
 │   ├── models.py                   # Data models (Location, WeatherData, etc.)
 │   └── constants.py                # Shared constants (temp ranges, API config)
 │
-├── function/                       # Azure Function (shared by both deployments)
-│   ├── function_app.py             # HTTP trigger for get_weather tool
+├── weather-api/                    # Weather API service (shared by both deployments)
+│   ├── app.py                      # FastAPI endpoint for get_weather tool
 │   ├── weather_service.py          # OpenWeatherMap API client
 │   ├── requirements.txt            # Generated from pyproject.toml by uv
-│   └── host.json                   # Function app configuration
+│   └── .env.example                # Weather API environment variables
 │
 ├── agent-container/                # Deployment 1: Container Apps
 │   ├── app.py                      # Agent application entry point
@@ -180,7 +178,6 @@ src/
     │   ├── bicep/
     │   │   ├── main.bicep           # Main infrastructure template
     │   │   ├── container-app.bicep  # Container Apps resources
-    │   │   ├── function-app.bicep   # Function App resources
     │   │   └── monitoring.bicep     # Application Insights resources
     │   └── README.md                # Container Apps deployment guide
     │
@@ -189,14 +186,13 @@ src/
         ├── bicep/
         │   ├── main.bicep           # Main infrastructure template
         │   ├── ai-foundry.bicep     # AI Foundry resources
-        │   ├── function-app.bicep   # Function App resources (shared)
         │   └── monitoring.bicep     # Application Insights resources
         └── README.md                # Foundry Agent deployment guide
 
 tests/                               # Manual test scripts (optional for POC)
 └── manual/
-    ├── test_function.py             # Direct function testing
-    └── test_agent.py                # Agent interaction testing
+  ├── test_weather_api.py          # Direct Weather API testing
+  └── test_agent.py                # Agent interaction testing
 
 pyproject.toml                       # Root project configuration (uv)
 uv.lock                              # Lock file (generated by uv)
@@ -208,7 +204,7 @@ README.md                            # Repository overview and setup
 
 **Rationale**:
 
-1. **Shared Function**: Single Azure Function serves both deployments (DRY principle, consistent weather data)
+1. **Shared Weather API**: Single Weather API service serves both deployments (DRY principle, consistent weather data)
 2. **Dual Agent Deployments**: Two separate agent implementations demonstrate different hosting patterns:
    - `agent-container/`: Full control, containerized, self-hosted in Azure Container Apps
    - `agent-foundry/`: Managed service, simpler deployment, hosted by Azure AI Foundry
@@ -218,7 +214,7 @@ README.md                            # Repository overview and setup
 
 **Key Architectural Decisions**:
 
-- **Single Function, Dual Agents**: Weather function is deployed once, consumed by both agent deployments via HTTP (function URL shared)
+- **Single Weather API, Dual Agents**: Weather API is deployed once, consumed by both agent deployments via HTTP (shared endpoint)
 - **Code Reuse**: `clothing_logic.py` is identical in both agent deployments (symlink or copy during build)
 - **Telemetry Strategy**:
   - Container Apps: Manual Application Insights integration via `azure-monitor-opentelemetry`

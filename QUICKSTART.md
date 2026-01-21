@@ -1,150 +1,204 @@
-# Weather Advisor - Quick Start Guide
+# Quick Start Guide
 
-Simple 3-step deployment process for Azure Container Apps.
+Get an agent running in 5 minutes. Choose your path:
 
-## Prerequisites
+---
 
-1. **Azure CLI** installed and logged in (`az login`)
-2. **Docker Desktop** running
-3. **Azure Container Registry** created:
-   ```powershell
-   az acr create --resource-group foundry --name anacr123321 --sku Basic
-   az acr update --name anacr123321 --admin-enabled true
-   ```
-4. **OpenWeatherMap API Key** from https://openweathermap.org/appid (free tier)
+## Option 1: Container Apps (Self-Hosted)
 
-## Step 1: Configure Environment
+### Prerequisites
+- Azure CLI logged in (`az login`)
+- Python 3.11+ with uv
+- OpenWeatherMap API key ([get free key](https://openweathermap.org/api))
+
+### Deploy
 
 ```powershell
-# Copy and edit .env file
-Copy-Item .env.example .env
+# 1. Clone and setup
+git clone <repo-url>
+cd agentdemo
+uv venv
+.\.venv\Scripts\Activate.ps1
 
-# Edit .env with your values:
-# - AZURE_RESOURCE_GROUP=foundry
-# - AZURE_LOCATION=swedencentral
-# - OPENWEATHERMAP_API_KEY=your_key_here
-# - CONTAINER_REGISTRY_NAME=anacr123321
+# 2. Configure
+cp .env.example .env
+code .env  # Add your API keys
+
+# 3. Deploy
+cd deploy/container-app
+./deploy.ps1
 ```
 
-## Step 2: Build and Push Image
+### Test
 
 ```powershell
-# Run from project root
-./build-and-push.ps1
-
-# This handles everything:
-# ✓ Builds Docker image from correct directory
-# ✓ Tags for your ACR
-# ✓ Logs in to ACR
-# ✓ Pushes image
+# Get agent URL from deployment output
+curl -X POST https://<your-agent-url>/chat `
+  -H "Content-Type: application/json" `
+  -d '{"message": "What should I wear in 10001?"}'
 ```
 
-## Step 3: Deploy to Azure
+**Expected**: Clothing recommendations based on current NYC weather.
+
+---
+
+## Option 2: Azure AI Foundry (Managed)
+
+### Prerequisites
+- Azure AI Foundry project ([create at ai.azure.com](https://ai.azure.com))
+- Weather API deployed (see Option 1 or use existing)
+- Python 3.11+ with uv
+
+### Deploy
 
 ```powershell
-# Navigate to deployment folder
-Set-Location deploy/container-app
+# 1. Clone and setup
+git clone <repo-url>
+cd agentdemo
+uv venv
+.\.venv\Scripts\Activate.ps1
 
-# Load environment variables
-Get-Content ../../.env | ForEach-Object {
-    if ($_ -match '^([^#][^=]+)=(.*)$') {
-        $varName = $matches[1].Trim()
-        $varValue = $matches[2].Trim()
-        Set-Variable -Name $varName -Value $varValue -Scope Global
-    }
-}
+# 2. Configure
+cp .env.example .env
+# Add:
+#   AI_PROJECT_CONNECTION_STRING=<from-foundry-portal>
+#   WEATHER_API_URL=<your-weather-api-url>
 
-# Deploy
-./deploy.ps1 `
-    -ResourceGroupName $AZURE_RESOURCE_GROUP `
-    -OpenWeatherMapApiKey $OPENWEATHERMAP_API_KEY
+# 3. Register agent
+cd src/agent-foundry
+python register_agent.py
+# Save the agent ID output
 
-# The script will:
-# ✓ Verify image exists in ACR
-# ✓ Deploy shared infrastructure (App Insights, Weather Function)
-# ✓ Deploy Container App
-# ✓ Output the Container App URL
+# 4. Test
+python test_agent.py
 ```
 
-## Test Your Deployment
+**Expected**: Same recommendations, but through Foundry managed service.
+
+---
+
+## Option 3: Both (Compare)
+
+Deploy to both platforms and compare:
 
 ```powershell
-# Get Container App URL
-$CONTAINER_APP_NAME = az containerapp list `
-    --resource-group foundry `
-    --query "[?starts_with(name, 'ca-weather-advisor')].name | [0]" -o tsv
+# 1. Deploy Container Apps (see Option 1)
 
-$CONTAINER_APP_URL = az containerapp show `
-    --resource-group foundry `
-    --name $CONTAINER_APP_NAME `
-    --query properties.configuration.ingress.fqdn -o tsv
+# 2. Deploy Foundry (see Option 2)
 
-# Test health endpoint
-Invoke-RestMethod -Uri "https://$CONTAINER_APP_URL/health"
-
-# Test chat endpoint
-$body = @{ message = "What should I wear in 10001?" } | ConvertTo-Json
-Invoke-RestMethod -Uri "https://$CONTAINER_APP_URL/chat" `
-    -Method Post `
-    -ContentType "application/json" `
-    -Body $body
+# 3. Compare
+cd src/agent-foundry
+python compare_agents.py
 ```
 
-## That's It!
+**Result**: Side-by-side performance and quality comparison.
 
-You now have a working weather-based clothing advisor with:
-- ✅ Workflow orchestration (4-step: Parse → Get Weather → Generate → Format)
-- ✅ Application Insights telemetry
-- ✅ Azure Functions integration
-- ✅ Production-ready container deployment
+---
+
+## What You Built
+
+**An AI agent that**:
+1. Takes a location (zip code)
+2. Calls external weather API
+3. Applies AI reasoning
+4. Returns clothing recommendations
+
+**Key Pattern**: Agent calls external HTTP API (portable across platforms)
+
+---
+
+## Next Steps
+
+### Learn the Concepts
+👉 **[Agent Framework Tutorial](./docs/AGENT-FRAMEWORK-TUTORIAL.md)**
+
+### Full Deployment Guides
+- **[Container Apps Guide](./docs/DEPLOYMENT-CONTAINER-APPS.md)** - Self-hosted details
+- **[Foundry Guide](./docs/DEPLOYMENT-FOUNDRY.md)** - Managed service details
+
+### Move Between Platforms
+👉 **[Porting Guide](./docs/PORTING-GUIDE.md)**
+
+### Optimize Costs
+👉 **[Workflow Patterns](./docs/WORKFLOW-ORCHESTRATION-PATTERNS.md)**
+
+---
 
 ## Troubleshooting
 
-**Image not found in registry?**
-```powershell
-# Verify image exists
-az acr repository show --name anacr123321 --image weather-advisor:latest
+### Container Apps: 500 Error
 
-# If missing, run build-and-push.ps1 again
+**Check logs**:
+```powershell
+az containerapp logs show --name <agent-name> --resource-group foundry --tail 50
 ```
 
-**Deployment fails?**
+**Common issues**:
+- Missing environment variables
+- Weather API not accessible
+- Azure OpenAI authentication failed
+
+### Foundry: Agent Registration Fails
+
+**Check**:
+1. Connection string correct?
+2. Weather API has external ingress?
+3. OpenAPI spec valid?
+
+**Fix**: See [Foundry Deployment Guide](./docs/DEPLOYMENT-FOUNDRY.md#troubleshooting)
+
+### Weather API Not Responding
+
+**Verify**:
 ```powershell
-# Check Azure CLI is logged in
-az account show
-
-# Verify resource group exists
-az group show --name foundry
-
-# Check container app logs
-az containerapp logs show `
-    --resource-group foundry `
-    --name $CONTAINER_APP_NAME `
-    --follow
+curl https://<weather-api-url>/api/weather?zip_code=10001
 ```
 
-**Need to rebuild?**
-```powershell
-# Just run build-and-push.ps1 again from project root
-./build-and-push.ps1
+**Should return**: Weather data JSON
 
-# Then redeploy (it will use the new image)
-Set-Location deploy/container-app
-./deploy.ps1 -ResourceGroupName foundry -OpenWeatherMapApiKey $OPENWEATHERMAP_API_KEY
+---
+
+## Configuration Reference
+
+### .env File
+
+```env
+# OpenWeatherMap API
+OPENWEATHER_API_KEY=your_key_here
+
+# Azure OpenAI
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_API_KEY=your_key_here
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4
+
+# For Foundry deployment
+AI_PROJECT_CONNECTION_STRING=your_connection_string
+
+# Weather API URL (after Container Apps deployment)
+WEATHER_API_URL=https://ca-weather-api-<suffix>.azurecontainerapps.io
 ```
 
-## For More Details
+### Azure Resources Created
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive documentation including:
-- Azure AI Foundry deployment option
-- Monitoring and observability setup
-- Cost optimization strategies
-- Security hardening
-- CI/CD pipeline setup
+**Container Apps deployment creates**:
+- Container Apps environment
+- Weather API container (internal/external ingress)
+- Agent container (external ingress)
+- Application Insights workspace
+- Container Registry (if doesn't exist)
 
-## Clean Up
+**Foundry deployment creates**:
+- Agent registration in Foundry project
+- No additional Azure resources
 
-```powershell
-# Remove everything
-az group delete --name foundry --yes --no-wait
-```
+---
+
+## Support
+
+**Issues**: See troubleshooting sections in deployment guides
+**Documentation**: [docs/](./docs/) folder
+**Examples**: [samples/](./samples/) folder
+
+---
+
+**🎉 You're ready!** Choose your deployment path and start building.

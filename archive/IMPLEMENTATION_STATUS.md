@@ -16,16 +16,15 @@
 
 ### Phase 2: Foundational Components (Tasks T005-T012)
 - ✅ **T005-T006**: Shared data models and constants
-  - `src/shared/models.py`: 5 dataclasses (Location, WeatherData, ClothingItem, ClothingRecommendation, WeatherFunctionError)
+  - `src/shared/models.py`: 5 dataclasses (Location, WeatherData, ClothingItem, ClothingRecommendation, WeatherApiError)
   - `src/shared/constants.py`: Temperature ranges, wind thresholds, error codes, helper functions
   - `src/shared/__init__.py`: Package exports
 
-- ✅ **T007-T012**: Weather Function (Azure Functions)
-  - `src/function/weather_service.py`: OpenWeatherMap API client with 3-second timeout
-  - `src/function/function_app.py`: HTTP-triggered Azure Function
-  - `src/function/host.json`: Azure Functions v2 configuration
-  - `src/function/requirements.txt`: Function dependencies
-  - `src/function/.env.example`: Environment variables template
+- ✅ **T007-T012**: Weather API Service
+  - `src/weather-api/weather_service.py`: OpenWeatherMap API client with 3-second timeout
+  - `src/weather-api/app.py`: FastAPI endpoint for Weather API
+  - `src/weather-api/requirements.txt`: Weather API dependencies
+  - `src/weather-api/.env.example`: Environment variables template
 
 ### Phase 3: User Story 1 - Weather Lookup (Tasks T013-T023)
 - ✅ **T013-T017**: Container Apps Agent with Workflow Pattern
@@ -60,13 +59,13 @@
 ### Phase 6: Container Apps Deployment (Tasks T038-T049)
 - ✅ **T038-T041**: Infrastructure as Code
   - `deploy/shared/monitoring.bicep`: Application Insights + Log Analytics
-  - `deploy/shared/function-app.bicep`: Azure Function with Consumption plan
+  - Weather API deployed via Container Apps
   - `deploy/container-app/main.bicep`: Container App + Environment
   - `deploy/container-app/deploy.ps1`: PowerShell deployment script
 
 - ✅ **T042-T045**: Container Configuration
   - `Dockerfile.container-app`: Multi-stage build with Python 3.11 + uv
-  - `Dockerfile.function`: Azure Functions base image
+  - Weather API container image in Dockerfile.weather-api
   - `.dockerignore`: Optimized build context
   - `.gitignore`: Python + Azure + Docker patterns
 
@@ -82,7 +81,7 @@
 - ✅ **Dependencies**: Updated `pyproject.toml` with all required packages:
   - Azure Agent Framework (agent-framework, agent-framework-azure-ai)
   - Azure AI Foundry (azure-ai-projects, azure-identity)
-  - Azure Functions (azure-functions)
+  - Weather API service (FastAPI)
   - FastAPI (fastapi, uvicorn)
   - Telemetry (azure-monitor-opentelemetry, opentelemetry-api/sdk)
   - HTTP client (requests)
@@ -96,7 +95,7 @@
 
 **4-Step Workflow Pattern (Both Deployments)**:
 1. **Parse Input** → Extract zip code from user message
-2. **Get Weather Data** → Call Azure Function tool
+2. **Get Weather Data** → Call Weather API tool
 3. **Generate Recommendations** → AI reasoning for clothing advice
 4. **Format Response** → Conversational output
 
@@ -227,7 +226,7 @@ Deployment Option 2: Foundry
                                 │  (Native Telemetry) │
                                 └─────────────────────┘
 
-Shared Weather Function
+Shared Weather API
 ┌──────────────┐      ┌─────────────────┐
 │   Weather    │─────▶│  OpenWeatherMap │
 │   Function   │      │      API        │
@@ -239,7 +238,7 @@ Shared Weather Function
 
 ## 📝 Key Decisions
 
-1. **Dual Deployment Architecture**: Both deployments share the same weather function, ensuring consistency and demonstrating two different agent hosting approaches.
+1. **Dual Deployment Architecture**: Both deployments share the same Weather API, ensuring consistency and demonstrating two different agent hosting approaches.
 
 2. **FastAPI for Container Apps**: Chosen during remediation (Finding T2) for its async support, modern Python type hints, and built-in OpenAPI documentation.
 
@@ -267,7 +266,7 @@ Shared Weather Function
 
 ### Source Code
 - ✅ Complete Python application with Azure Agent Framework
-- ✅ Azure Function for weather data
+- ✅ Weather API for weather data
 - ✅ Shared models, constants, and clothing logic
 - ✅ FastAPI server for Container Apps
 - ✅ Agent registration for Foundry

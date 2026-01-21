@@ -1,296 +1,302 @@
-# Weather-Based Clothing Advisor POC
+# Agent Framework Reference Implementation
 
-AI agent that provides personalized clothing recommendations based on current weather conditions using workflow orchestration.
+**Build once, deploy anywhere**: A practical reference for building AI agents that work in both self-hosted (Azure Container Apps) and managed (Azure AI Foundry) environments.
 
-## Overview
+> **Use Case**: Weather-based clothing advisor (throwaway example)
+> **Real Value**: Portable agent pattern you can adapt for any external API integration
 
-This POC demonstrates a **two-container microservices architecture** for AI agents:
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-1. **Agent Container**: Workflow orchestration with Microsoft Agent Framework
-2. **Weather API Container**: FastAPI service for weather data retrieval
+---
 
-**Architecture implements the following pattern**:
-1. **User Request**: Sent to agent container endpoint
-2. **Parse Input**: Extract zip code from user message
-3. **Get Weather**: Call internal weather API container via HTTP
-4. **Generate Recommendations**: AI reasoning for clothing advice with Azure OpenAI
-5. **Format Response**: Conversational output with telemetry
+## Why This Repo?
 
-This architecture showcases:
-- **Microservices Pattern**: Separation of concerns (agent logic vs. data services)
-- **Internal Networking**: Containers communicate via Container Apps internal ingress
-- **Managed Identity**: End-to-end authentication without keys
-- **Version Tracking**: Git hash + timestamp for deployment traceability
+You're evaluating Agent Framework and need to decide:
+- **Container Apps** (self-hosted): Full control, faster responses
+- **Foundry** (managed): No infrastructure, built-in orchestration
+- **Both**: Why not have options?
 
-## Features
+**This repo shows you**: Same agent code works in both environments. Choose based on your needs, not code limitations.
 
-- **US1 (P1)**: Basic weather lookup by zip code
-- **US2 (P2)**: AI-generated clothing recommendations based on temperature, precipitation, and wind
-- **US3 (P3)**: Multiple lookups in a single session
+---
 
-## Architecture
+## Quick Start (5 Minutes)
 
-### Current Deployment (Container Apps)
-```
-User Request → Agent Container (External Ingress)
-                    ↓
-           WorkflowOrchestrator
-                    ↓
-    ┌───────────────┴─────────────────┐
-    │  Workflow Execution             │
-    ├─────────────────────────────────┤
-    │ 1. Parse Input (zip code)       │
-    │ 2. Call Weather API Container   │
-    │    (Internal HTTP)              │
-    │ 3. Generate Recommendations     │
-    │    (Azure OpenAI via Foundry)   │
-    │ 4. Format Response              │
-    └─────────────────┬───────────────┘
-                      ↓
-            Application Insights
+### What You'll Build
+An AI agent that:
+1. Calls an external weather API
+2. Applies AI reasoning
+3. Returns clothing recommendations
+
+### Deploy to Container Apps
+```powershell
+# Clone and setup
+git clone <repo-url>
+cd agentdemo
+.\.venv\Scripts\Activate.ps1
+
+# Configure (add your keys to .env)
+cp .env.example .env
+
+# Deploy
+./deploy/container-app/deploy.ps1
 ```
 
-### Weather API Container (Internal)
-```
-Agent Container → Weather API Container
-                       ↓
-              FastAPI /api/weather
-                       ↓
-             OpenWeatherMap API
-                       ↓
-              Weather Data JSON
-```
+### Deploy to Foundry
+```powershell
+# Register agent in Foundry
+cd src/agent-foundry
+python register_agent.py
 
-### Planned: Azure Foundry Deployment
-```
-User Request → Azure AI Foundry (Managed Agent)
-                    ↓
-              OpenAPI Tool Call
-                    ↓
-         Weather API Container (External)
-                    ↓
-              OpenWeatherMap API
+# Test it
+python test_agent.py
 ```
 
-## Technology Stack
+**⏱️ Total time**: ~15 minutes per deployment
 
-- **Language**: Python 3.11
-- **Package Manager**: uv
-- **Agent Framework**: [Microsoft Agent Framework](https://github.com/microsoft/agent-framework)
-- **Workflow**: WorkflowOrchestrator (programmatic Python orchestration)
-- **Configuration**: YAML (agent.yaml, workflow.yaml)
-- **Web Framework**: FastAPI (both containers)
-- **Containers**: Docker multi-stage builds with uv package manager
-- **Deployment**: Azure Container Apps with managed identity
-- **Telemetry**: Azure Application Insights
-- **Region**: Sweden Central
-- **Versioning**: Git hash + timestamp (e.g., 5f000f4-20260121-093731)
+---
 
-## Quick Start
+## Choose Your Path
 
-### Prerequisites
+### 🚀 Container Apps (Self-Hosted)
+**Best for**:
+- High-volume workloads (2.3x faster responses)
+- Full infrastructure control
+- Custom networking requirements
 
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) package manager
-- Azure CLI (for deployment)
-- OpenWeatherMap API key (free tier)
+**You get**:
+- Docker containers deployed to Azure Container Apps
+- Direct HTTP API calls
+- Managed identity authentication
+- Application Insights monitoring
 
-### Local Development Setup
+👉 **[Container Apps Deployment Guide](./docs/DEPLOYMENT-CONTAINER-APPS.md)**
 
-1. **Clone the repository**
+---
 
-   ```bash
-   git clone <repository-url>
-   cd agentdemo
-   ```
+### ☁️ Azure AI Foundry (Managed)
+**Best for**:
+- Rapid development
+- No infrastructure management
+- Built-in agent orchestration
 
-2. **Install dependencies**
+**You get**:
+- Managed agent runtime
+- OpenAPI tool integration
+- Built-in conversation threads
+- Foundry portal UI
 
-   ```bash
-   uv sync --prerelease=allow
-   ```
+👉 **[Foundry Deployment Guide](./docs/DEPLOYMENT-FOUNDRY.md)**
 
-   **Note**: `--prerelease=allow` is required because the Microsoft Agent Framework is currently in preview.
+---
 
-3. **Configure environment variables**
+### 🔄 Both (Side-by-Side)
+**Best for**:
+- Evaluating performance/cost
+- Hybrid deployment strategies
+- Migration scenarios
 
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your OPENWEATHERMAP_API_KEY
-   ```
+**Compare**:
+- Same agent code, two deployment models
+- See performance differences (tested: Container Apps 4.68s avg vs Foundry 10.88s avg)
+- Cost analysis: 70% savings with hybrid pattern
 
-4. **Run the weather function locally**
+👉 **[Comparison Report](./docs/comparison-report.md)** | **[Porting Guide](./docs/PORTING-GUIDE.md)**
 
-   ```bash
-   cd src/function
-   func start
-   ```
+---
 
-5. **Run the Container Apps agent locally**
+## What's Inside
 
-   ```bash
-   cd src/agent-container
-   uvicorn app:app --reload
-   ```
+### Architecture
+```
+┌─────────────────────────────────────────────────────────┐
+│  Agent (Either deployment model)                        │
+├─────────────────────────────────────────────────────────┤
+│  • Orchestrates workflow                                │
+│  • Calls external Weather API                           │
+│  • Applies AI reasoning (Azure OpenAI)                  │
+│  • Returns recommendations                              │
+└──────────────────┬──────────────────────────────────────┘
+                   ↓
+         External Weather API
+         (OpenWeatherMap via Container Apps)
+```
 
-## Project Structure
+**Key Concept**: The agent calls external HTTP APIs - not embedded functions. This makes it portable.
 
-```text
+### Repository Structure
+```
 src/
-├── shared/              # Common data models and constants
-│   ├── models.py        # WeatherRequest, WeatherData, ClothingRecommendation
-│   └── constants.py     # REGION, DEFAULT_TEMP_UNIT, ZIP_CODE_PATTERN
-│
-├── function/            # Azure Function (weather API tool)
-│   ├── function_app.py  # HTTP trigger for get_weather
-│   └── requirements.txt # Function dependencies
-│
-├── agent-container/     # Container Apps Workflow (Programmatic)
-│   ├── app.py           # FastAPI server with workflow endpoints
-│   ├── agent_service.py # Agent lifecycle management
-│   ├── workflow_orchestrator.py  # WorkflowOrchestrator class
-│   ├── agent.yaml       # Agent configuration (model, tools, settings)
-│   └── workflow.yaml    # Workflow definition (4 steps, dependencies)
-│
-└── agent-foundry/       # Foundry Workflow (Declarative)
-    ├── agent.yaml       # Agent configuration (matches Container Apps)
-    ├── workflow.yaml    # Declarative workflow orchestration
-    ├── deploy_workflow.py  # Python deployment script
-    └── README.md        # Foundry deployment guide
+├── agent-container/       # Container Apps agent code
+├── agent-foundry/         # Foundry registration & tests
+└── shared/                # Common business logic
 
 deploy/
-├── shared/              # Shared infrastructure (monitoring, function)
-├── container-app/       # Container Apps Bicep templates
-└── foundry/             # Foundry infrastructure (TBD)
+├── container-app/         # Bicep templates & scripts
+└── shared/                # Shared infrastructure
 
-tests/manual/            # Manual testing scripts
-specs/                   # Feature specifications
+docs/                      # Comprehensive guides
+tests/                     # Test scripts
+samples/                   # Minimal code examples
 ```
 
-### Key Files in Both Workflow Deployments
-
-**Container Apps** (Programmatic Workflow):
-- **`workflow_orchestrator.py`**: Python class executing 4-step workflow
-- **`agent.yaml`**: Agent configuration (model, tools, instructions)
-- **`workflow.yaml`**: Workflow definition (steps, dependencies, validation)
-- **`app.py`**: FastAPI server integrating WorkflowOrchestrator
-
-**Foundry** (Declarative Workflow):
-- **`agent.yaml`**: Agent configuration (model, tools, instructions)
-- **`workflow.yaml`**: Declarative workflow orchestration
-- **`deploy_workflow.py`**: Deployment script with YAML parsing
-
-## Deployment
-
-### Container Apps Deployment
-
-See [deploy/container-app/README.md](deploy/container-app/README.md) for detailed deployment instructions.
-
-```bash
-cd deploy/container-app
-./deploy.ps1 -ResourceGroupName "rg-weather-advisor-dev" -OpenWeatherMapApiKey "your-key"
-```
-
-### Foundry Workflow Deployment
-
-See [src/agent-foundry/README.md](src/agent-foundry/README.md) for detailed deployment instructions.
-
-**Using declarative YAML workflow**:
-```bash
-cd src/agent-foundry
-
-# Validate configuration
-python deploy_workflow.py validate
-
-# Deploy workflow
-python deploy_workflow.py deploy
-```
-
-The Foundry deployment uses:
-- **`agent.yaml`**: Agent configuration (model, tools, instructions)
-- **`workflow.yaml`**: Workflow orchestration (steps, validation, telemetry)
-- **Declarative approach**: Version-controlled YAML files instead of imperative code
-
-## Testing
-
-Manual testing guide: [specs/001-weather-clothing-advisor/quickstart.md](specs/001-weather-clothing-advisor/quickstart.md)
-
-**Sample Test Zip Codes**:
-
-- 10001 (NYC) - Varied weather
-- 90210 (Beverly Hills) - Hot weather
-- 60601 (Chicago) - Cold weather
-- 00000 - Invalid (error testing)
-
-## Success Criteria
-
-- ✅ SC-001: Response time <5 seconds
-- ✅ SC-002: 3-5 clothing recommendations per query
-- ✅ SC-003: 95% success rate for valid zip codes
-- ✅ SC-004: Understandable recommendations
-- ✅ SC-005: Handles extreme weather conditions
-
-## Workflow Pattern Benefits
-
-Both deployments demonstrate workflow orchestration with:
-
-- **Structured Execution**: 4-step workflow with clear dependencies
-- **Comprehensive Telemetry**: Track each step's duration and success
-- **Error Handling**: Graceful degradation with appropriate fallback messages
-- **Performance Validation**: SC-001 enforcement (5-second threshold)
-- **Observability**: Application Insights integration for monitoring
-
-**Implementation Comparison**:
-
-| Aspect | Container Apps | Foundry |
-|--------|---------------|---------|
-| Pattern | Programmatic (Python) | Declarative (YAML) |
-| Orchestration | WorkflowOrchestrator class | Foundry workflow engine |
-| Configuration | agent.yaml + workflow.yaml | agent.yaml + workflow.yaml |
-| Deployment | Docker container | Azure AI Foundry |
-| Flexibility | Full Python control | YAML constraints |
-| Best For | Custom logic, testing | Production, versioning |
-
-## POC Scope
-
-This is a **proof-of-concept** demonstrating:
-
-- Azure Agent Framework SDK capabilities
-- **Workflow orchestration patterns** (programmatic and declarative)
-- Dual deployment patterns (Container Apps vs Foundry)
-- Agent-function integration
-- Telemetry with Application Insights
-
-**Intentionally out of scope** (per POC Constitution):
-
-- Production-grade error handling
-- User authentication/authorization
-- Data persistence
-- Caching layer
-- Rate limiting
-- CI/CD automation
+---
 
 ## Documentation
 
-- [Feature Specification](specs/001-weather-clothing-advisor/spec.md)
-- [Implementation Plan](specs/001-weather-clothing-advisor/plan.md)
-- [Tasks](specs/001-weather-clothing-advisor/tasks.md)
-- [Quick Start Testing](specs/001-weather-clothing-advisor/quickstart.md)
-- [Data Model](specs/001-weather-clothing-advisor/data-model.md)
-- [Technology Research](specs/001-weather-clothing-advisor/research.md)
+### Getting Started
+- **[Agent Framework Tutorial](./docs/AGENT-FRAMEWORK-TUTORIAL.md)** - Learn the concepts
+- **[Quickstart](./QUICKSTART.md)** - Deploy in 5 minutes
 
-## Constitution
+### Deployment Guides
+- **[Container Apps Deployment](./docs/DEPLOYMENT-CONTAINER-APPS.md)** - Self-hosted path
+- **[Foundry Deployment](./docs/DEPLOYMENT-FOUNDRY.md)** - Managed path (both patterns)
+- **[Porting Guide](./docs/PORTING-GUIDE.md)** - Move between deployments
 
-This POC follows the [Agent Demo POC Constitution](.specify/memory/constitution.md) with three core principles:
+### Reference
+- **[Architecture Deep Dive](./docs/AGENT-FRAMEWORK-TUTORIAL.md#architecture-overview)** - How it all works
+- **[Workflow Patterns](./docs/WORKFLOW-ORCHESTRATION-PATTERNS.md)** - Cost-effective patterns
+- **[Comparison Report](./docs/comparison-report.md)** - Performance benchmarks
 
-1. **POC-First Simplicity**: Focus on essential features, avoid over-engineering
-2. **Documentation-Driven Development**: Consult Microsoft Learn and Context7 for all technical decisions
-3. **Rapid Validation**: Manual testing preferred, strategic automation only
+---
 
-## License
+## Example: Weather Clothing Advisor
 
-[Specify license]
+**What it does**: Takes a zip code, gets weather, recommends clothing.
+
+**Why it matters**: Simple enough to understand quickly, complex enough to show real patterns.
+
+**Your use case**: Replace weather API with your own external service. The pattern stays the same.
+
+### Try It
+
+**Container Apps**:
+```bash
+curl https://ca-weather-dev-<your-id>.azurecontainerapps.io/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What should I wear in 10001?"}'
+```
+
+**Foundry**:
+```python
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
+
+client = AIProjectClient.from_connection_string(
+    credential=DefaultAzureCredential(),
+    conn_str="<your-connection-string>"
+)
+
+# Create thread and run agent
+thread = client.agents.threads.create()
+message = client.agents.messages.create(
+    thread_id=thread.id,
+    role="user",
+    content="What should I wear in 10001?"
+)
+run = client.agents.runs.create_and_process(
+    thread_id=thread.id,
+    agent_id="<your-agent-id>"
+)
+```
+
+---
+
+## Key Concepts
+
+### 1. Agent Framework
+Microsoft's framework for building AI agents with:
+- Declarative configuration (YAML)
+- External API integration (OpenAPI)
+- Workflow orchestration
+- Portability across environments
+
+### 2. External API Pattern
+**Traditional**: Agent → Embedded function → External API
+**This pattern**: Agent → External HTTP API (directly)
+
+**Why**: Portability. HTTP APIs work everywhere.
+
+### 3. Deployment Models
+**Container Apps**: You manage Docker containers
+**Foundry**: Microsoft manages the runtime
+**Your agent code**: Works in both
+
+### 4. Cost Optimization
+**Agent-only**: Expensive (every request uses LLM)
+**Hybrid**: 70% cheaper (use business logic for simple cases, agents for complex reasoning)
+
+👉 **[Workflow Patterns Guide](./docs/WORKFLOW-ORCHESTRATION-PATTERNS.md)**
+
+---
+
+## Performance
+
+Based on 7 test cases across both deployments:
+
+| Metric | Container Apps | Foundry | Winner |
+|--------|---------------|---------|--------|
+| **Success Rate** | 100% (7/7) | 100% (7/7) | Tie ✅ |
+| **Avg Response Time** | 4.68s | 10.88s | Container Apps 🚀 |
+| **Setup Complexity** | High | Low | Foundry 👍 |
+| **Cost (high volume)** | Lower | Higher | Container Apps 💰 |
+| **Maintenance** | You | Microsoft | Foundry ⚙️ |
+
+**Verdict**: Both work reliably. Choose based on your priorities.
+
+👉 **[Full Comparison Report](./docs/comparison-report.md)**
+
+---
+
+## Prerequisites
+
+### Required
+- **Azure Subscription** with Owner or Contributor role
+- **Azure CLI** - [Install](https://docs.microsoft.com/cli/azure/install-azure-cli)
+- **Python 3.11+** - [Download](https://www.python.org/downloads/)
+- **uv** - `pip install uv` or [install guide](https://docs.astral.sh/uv/)
+- **OpenWeatherMap API Key** - [Free tier](https://openweathermap.org/api)
+
+### Optional
+- **Docker Desktop** - For local testing
+- **VS Code** - Recommended editor
+- **Azure AI Foundry Project** - For Foundry deployment
+
+---
+
+## Next Steps
+
+1. **Learn the concepts**: [Agent Framework Tutorial](./docs/AGENT-FRAMEWORK-TUTORIAL.md)
+2. **Deploy Container Apps**: [Deployment Guide](./docs/DEPLOYMENT-CONTAINER-APPS.md)
+3. **Deploy Foundry**: [Deployment Guide](./docs/DEPLOYMENT-FOUNDRY.md)
+4. **Compare both**: [Porting Guide](./docs/PORTING-GUIDE.md)
+5. **Adapt for your use case**: Replace weather API with your own
+
+---
 
 ## Contributing
 
-[Specify contribution guidelines if applicable]
+This is a reference implementation. Feel free to:
+- Adapt for your use case
+- Submit improvements
+- Share your experiences
+
+## License
+
+MIT License - see [LICENSE](./LICENSE) file for details.
+
+---
+
+## Support
+
+- **Issues**: [GitHub Issues](link-to-issues)
+- **Documentation**: See [docs/](./docs/) folder
+- **Examples**: See [samples/](./samples/) folder
+
+---
+
+**Built with**: Microsoft Agent Framework | Azure Container Apps | Azure AI Foundry
+**Example Use Case**: Weather-based clothing recommendations
+**Real Value**: Portable agent pattern for any external API integration
+
+👉 **[Get Started Now](./QUICKSTART.md)**

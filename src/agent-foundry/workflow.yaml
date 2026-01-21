@@ -99,11 +99,11 @@ azure:
   application_insights:
     connection_string: ${APPLICATIONINSIGHTS_CONNECTION_STRING}
 
-  # Weather Function
+  # Weather API
   functions:
     - name: get_weather
-      endpoint: ${WEATHER_FUNCTION_URL}
-      authentication: function_key
+      endpoint: ${WEATHER_API_URL}
+      authentication: none
 
 # Deployment configuration
 deployment:

@@ -7,7 +7,7 @@ This directory contains the deployment configuration for the Weather-Based Cloth
 ```
 Container Apps Deployment
 ├── Container App (FastAPI + Azure Agent Framework)
-│   └── Calls Weather Function via HTTP
+│   └── Calls Weather API via HTTP
 ├── Weather API Container (Internal)
 │   └── Calls OpenWeatherMap API
 └── Application Insights
@@ -76,7 +76,7 @@ curl -X POST https://your-container-app.azurecontainerapps.io/chat \
 
 The Container App is configured with:
 
-- `WEATHER_FUNCTION_URL`: URL of the weather function (auto-configured)
+- `WEATHER_API_URL`: URL of the weather API (auto-configured)
 - `APPLICATIONINSIGHTS_CONNECTION_STRING`: Telemetry connection string (auto-configured)
 - `ENVIRONMENT`: Deployment environment (dev/staging/prod)
 
@@ -173,7 +173,7 @@ az monitor log-analytics query \
    - Check image exists: `docker pull YOUR_IMAGE`
 
 2. **Function timeout**:
-   - Check weather function logs
+    - Check weather API logs
    - Verify OpenWeatherMap API key
    - Check network connectivity
 
@@ -193,7 +193,7 @@ az group delete --name rg-weather-advisor-dev --yes --no-wait
 
 For POC/development:
 
-- Use Consumption plan for Function App (pay-per-execution)
+- Use scale-to-zero for the Weather API to reduce costs
 - Set Container App min replicas to 0 for dev environments
 - Use Log Analytics 30-day retention (configurable in monitoring.bicep)
 

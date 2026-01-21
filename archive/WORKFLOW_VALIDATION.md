@@ -59,7 +59,7 @@ This document confirms that **both Azure Container Apps and Azure AI Foundry** d
                       │ depends_on
 ┌─────────────────────▼───────────────────────┐
 │   Step 2: Get Weather Data                  │
-│   - Call Azure Function tool                │
+│   - Call Weather API tool                   │
 │   - Query OpenWeatherMap API                │
 │   - Return temperature, conditions, wind    │
 │   - Duration: ~1-2 seconds                  │

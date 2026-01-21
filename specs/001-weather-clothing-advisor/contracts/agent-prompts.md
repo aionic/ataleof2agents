@@ -344,7 +344,7 @@ agent = ChatAgent(
     name="ClothingAdvisor"
 )
 
-# Register weather function tool
+# Register weather API tool
 agent.add_tool(get_weather_tool)
 ```
 
@@ -362,12 +362,12 @@ tools:
     function:
       name: get_weather
       description: "Retrieves current weather..."
-      [tool definition from weather-function-tool.json]
+      [tool definition from weather-api-tool.json]
 ```
 
 ## References
 
-- Function Tool Schema: [weather-function-tool.json](weather-function-tool.json)
+- Tool Schema: [weather-api-tool.json](weather-api-tool.json)
 - Data Model: [../data-model.md](../data-model.md)
 - Functional Requirements: [../spec.md](../spec.md)
 - Research: [../research.md](../research.md)

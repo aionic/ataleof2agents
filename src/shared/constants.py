@@ -52,7 +52,7 @@ OPENWEATHERMAP_UNITS = "imperial"  # Use Fahrenheit
 OPENWEATHERMAP_COUNTRY = "US"  # US zip codes only
 OPENWEATHERMAP_TIMEOUT_SECONDS = 3  # API timeout per spec performance goal
 
-# Error codes for WeatherFunctionError
+# Error codes for WeatherApiError
 ERROR_CODE_INVALID_ZIP = "INVALID_ZIP"
 ERROR_CODE_API_ERROR = "API_ERROR"
 ERROR_CODE_NETWORK_ERROR = "NETWORK_ERROR"

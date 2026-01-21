@@ -1,6 +1,6 @@
 # Test Docker image locally before deploying
 param(
-    [string]$WeatherFunctionUrl = "https://func-weather-dev-ezbvua564mnlg.azurewebsites.net/api/get_weather",
+    [string]$WeatherApiUrl = "",
     [string]$AppInsightsCs = ""
 )
 
@@ -16,7 +16,7 @@ Write-Host "🚀 Starting container..." -ForegroundColor Yellow
 $containerId = docker run -d `
     -p 8000:8000 `
     --name test-weather `
-    -e WEATHER_FUNCTION_URL=$WeatherFunctionUrl `
+    -e WEATHER_API_URL=$WeatherApiUrl `
     -e APPLICATIONINSIGHTS_CONNECTION_STRING=$AppInsightsCs `
     anacr123321.azurecr.io/weather-advisor:latest
 

@@ -45,41 +45,23 @@ uv add agent-framework agent-framework-azure-ai
 - Agent Types: <https://learn.microsoft.com/en-us/agent-framework/user-guide/agents/agent-types/>
 - Azure AI Agents: <https://learn.microsoft.com/en-us/agent-framework/user-guide/agents/agent-types/azure-ai-foundry-agent>
 
-### 2. Azure Functions for Weather API Tool
+### 2. Weather API Service (Container Apps)
 
-**Decision**: Use Azure Functions v2 programming model with HTTP triggers
-
-**Source**: [Microsoft Learn - Azure Functions Python](https://learn.microsoft.com/en-us/azure/azure-functions/functions-reference-python)
+**Decision**: Use a lightweight FastAPI service for the weather tool
 
 **Rationale**:
-- Serverless execution model (no VM management)
-- Built-in HTTP triggers for RESTful API patterns
-- Easy integration as agent function tool
-- Auto-scaling for POC needs
-- Free tier available for low-volume POC usage
-
-**Programming Model**: V2 (decorators) - simpler and more Pythonic
+- Aligns with Container Apps deployment model
+- Easy to run locally and in Azure Container Apps
+- Simple HTTP interface for agent tool calls
+- Reusable across both Container Apps and Foundry deployments
 
 **Key Features for POC**:
-- `@app.route()` decorator for HTTP endpoints
+- FastAPI route for `/api/weather`
 - Environment variables via `os.getenv()` for API keys
 - JSON request/response handling
-- Built-in Application Insights integration (optional for POC)
 
-**Cold Start Considerations**:
-- Python 3.11 cold starts: typically 2-4 seconds
-- For POC: acceptable given <5 second total target
-- Mitigation: keep function code minimal
-
-**Installation**:
-
-```bash
-uv add azure-functions
-```
-
-**Documentation Links**:
-- Python Developer Reference: <https://learn.microsoft.com/en-us/azure/azure-functions/functions-reference-python>
-- HTTP Triggers: <https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-http-webhook-trigger>
+**Deployment Target**:
+- Azure Container Apps (Weather API service)
 
 ### 3. uv Package Management
 
@@ -91,7 +73,7 @@ uv add azure-functions
 - 10-100x faster than pip/poetry (Rust-based)
 - Single tool replaces pip, pip-tools, poetry, pyenv, virtualenv
 - Native `pyproject.toml` support (PEP 621)
-- Can generate `requirements.txt` for Azure Functions compatibility
+- Can generate `requirements.txt` for container deployment
 - Project-level Python version management
 
 **Key Commands**:
@@ -101,7 +83,7 @@ uv add azure-functions
 uv init weather-clothing-advisor --python 3.11
 
 # Add dependencies
-uv add agent-framework agent-framework-azure-ai azure-functions requests
+uv add agent-framework agent-framework-azure-ai requests
 
 # Generate requirements.txt for Azure
 uv pip compile pyproject.toml -o requirements.txt
@@ -116,7 +98,7 @@ uv sync
 pyproject.toml          # Primary dependency definition
 .python-version         # Python 3.11
 uv.lock                 # Locked dependency versions
-requirements.txt        # Generated for Azure Functions deployment
+requirements.txt        # Generated for container deployment
 ```
 
 **Documentation Links**:
@@ -180,7 +162,7 @@ https://api.openweathermap.org/data/2.5/weather?zip={zip},US&appid={API_KEY}&uni
 
 **Rationale**:
 - Unified observability for both Container Apps and Foundry Agent deployments
-- Distributed tracing across agent → function → external API calls
+- Distributed tracing across agent → weather API → external API calls
 - Built-in dashboards for request rates, failures, performance
 - Query agent conversations and tool invocations
 - Essential for demonstrating deployment patterns (key POC requirement)
@@ -217,7 +199,7 @@ with tracer.start_as_current_span("agent_process_request"):
 
 1. **Request Metrics**:
    - Total requests per deployment
-   - Response times (agent + function)
+  - Response times (agent + weather API)
    - Success/failure rates
 
 2. **Agent Operations**:
@@ -225,7 +207,7 @@ with tracer.start_as_current_span("agent_process_request"):
    - Tool invocations (get_weather calls)
    - Token usage (for cost tracking)
 
-3. **Function Calls**:
+3. **Weather API Calls**:
    - Weather API latency
    - API success/failure rates
    - Zip code patterns (for debugging)
@@ -261,7 +243,7 @@ requests
 | summarize count() by bin(timestamp, 5m), tostring(customDimensions["deployment_type"])
 | render timechart
 
-// Weather function calls with errors
+// Weather API calls with errors
 requests
 | where name == "get_weather"
 | where success == false
@@ -335,7 +317,7 @@ requests
 **Architecture**:
 - Azure AI Project (Foundry)
 - Agent Definition (instructions, tools, model)
-- Function tool registration (weather function)
+- Weather API tool registration
 - API endpoint auto-generated
 
 **Agent Configuration**:
@@ -354,7 +336,7 @@ agent = AzureAIAgentClient(
 **Prerequisites**:
 - Azure AI Project in Foundry portal
 - Model deployment (e.g., gpt-4o-mini)
-- Function app deployed and accessible
+- Weather API deployed and accessible
 
 **Documentation Links**:
 - Azure AI Foundry Agents: <https://learn.microsoft.com/en-us/agent-framework/user-guide/agents/agent-types/azure-ai-foundry-agent>
@@ -367,7 +349,7 @@ agent = AzureAIAgentClient(
 **Rationale**:
 - User requirement for this POC
 - Sweden Central supports all required services:
-  - Azure Functions (Consumption/Flex plan)
+  - Weather API (Container Apps)
   - Azure Container Apps
   - Azure AI Services (Foundry)
   - Azure Container Registry
@@ -386,24 +368,21 @@ agent = AzureAIAgentClient(
 **Instructions Pattern**:
 - Clear role definition: "You are a clothing recommendation assistant"
 - Explicit behavior guidelines: temperature ranges, recommendation format
-- Tool usage instructions: when to call weather function
+- Tool usage instructions: when to call weather API
 
-**Function Tool Design**:
+**Weather API Tool Design**:
 - Single responsibility: weather lookup only
 - Clear parameter schema: zip code (string, 5 digits)
 - Structured response: JSON with temperature, conditions, humidity, wind
 - Error handling: return error codes/messages in response
 
-### Azure Functions Best Practices
-
-**Source**: [Microsoft Learn - Functions Best Practices](https://learn.microsoft.com/en-us/azure/azure-functions/performance-reliability)
+### Weather API Best Practices
 
 **For POC**:
-- Keep function stateless (no global state)
+- Keep the API stateless (no global state)
 - Use environment variables for API keys
 - Return JSON responses with proper status codes
 - Minimal dependencies to reduce cold start time
-- No need for Durable Functions (simple synchronous call)
 
 **Error Handling**:
 - Return HTTP 200 with error object (agent can interpret)
@@ -432,8 +411,8 @@ agent = AzureAIAgentClient(
 **Implemented**:
 - Managed identities for Azure resource access
 - Azure Key Vault for API keys (weather API, etc.)
-- No public endpoints for functions (called by agent only)
-- HTTPS by default (Container Apps, Functions)
+- Restrict Weather API ingress where possible (called by agent only)
+- HTTPS by default (Container Apps)
 
 **Intentionally Omitted (Not Required for POC)**:
 - User authentication/authorization
@@ -468,7 +447,7 @@ agent = AzureAIAgentClient(
    - Test Container Apps endpoint responds
    - Test Foundry agent responds
    - Verify both produce same recommendations
-   - Check function logs for API calls
+  - Check Weather API logs for API calls
 
 **No Automated Tests**: Per Constitution, manual testing sufficient for POC
 
@@ -477,20 +456,19 @@ agent = AzureAIAgentClient(
 **Expected Monthly Cost**: ~$0-5 USD
 
 **Free Tier Resources**:
-- Azure Functions: 1M free executions/month
 - Container Apps: 180,000 vCPU-seconds + 360,000 GiB-seconds free/month
 - OpenWeatherMap: 1,000 API calls/day free
 - Container Registry: Basic tier ~$5/month (only paid resource)
 
 **POC Usage Pattern**:
 - <100 total requests during demo
-- Function executions: <0.001% of free tier
+- Weather API requests: <0.001% of free tier
 - Container: runs <1 hour total (well within free tier)
 - Weather API: <100 calls (10% of daily free limit)
 
 **Cost Optimization**:
 - Container Apps scale-to-zero when idle
-- Functions consumption plan (pay-per-execution)
+- Container Apps scale-to-zero when idle
 - Use free tier AI model in Foundry if available
 
 ## Alternatives Considered
@@ -521,7 +499,6 @@ agent = AzureAIAgentClient(
 ### Microsoft Learn Documentation
 
 - Azure Agent Framework: <https://learn.microsoft.com/en-us/agent-framework/>
-- Azure Functions Python: <https://learn.microsoft.com/en-us/azure/azure-functions/functions-reference-python>
 - Azure Container Apps: <https://learn.microsoft.com/en-us/azure/container-apps/>
 - Python on Azure: <https://learn.microsoft.com/en-us/azure/developer/python/>
 

@@ -6,7 +6,7 @@ These dataclasses define the core entities used across all components:
 - WeatherData: Current weather conditions
 - ClothingItem: Individual clothing recommendation
 - ClothingRecommendation: Complete set of recommendations
-- WeatherFunctionError: Error response from weather function
+- WeatherApiError: Error response from weather API
 
 All models are JSON-serializable for API communication.
 """
@@ -130,7 +130,7 @@ class ClothingRecommendation:
 
 
 @dataclass
-class WeatherFunctionError:
+class WeatherApiError:
     """
     Error response from weather function tool.
 
@@ -145,8 +145,8 @@ class WeatherFunctionError:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'WeatherFunctionError':
-        """Create WeatherFunctionError instance from dictionary."""
+    def from_dict(cls, data: dict) -> 'WeatherApiError':
+        """Create WeatherApiError instance from dictionary."""
         return cls(**data)
 
 

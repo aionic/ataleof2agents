@@ -12,7 +12,7 @@ The Weather-Based Clothing Advisor POC demonstrates **workflow orchestration** u
 Both implementations execute the **same 4-step workflow**:
 
 1. **Parse Input** → Extract zip code from user message
-2. **Get Weather Data** → Call Azure Function tool
+2. **Get Weather Data** → Call Weather API tool
 3. **Generate Recommendations** → AI reasoning for clothing advice
 4. **Format Response** → Conversational output
 
@@ -75,7 +75,7 @@ User Request → Foundry Agent Service
     │                                   │
     │ 2. get_weather_data (tool)        │
     │    - Foundry calls HTTP tool      │
-    │    - Weather function invoked     │
+    │    - Weather API invoked          │
     │                                   │
     │ 3. generate_recommendations       │
     │    - Agent reasoning step         │
@@ -104,7 +104,7 @@ agent:
   tools:
     - name: "get_weather"
       type: "http"
-      endpoint: "${WEATHER_FUNCTION_URL}"
+      endpoint: "${WEATHER_API_URL}"
 
   telemetry:
     enabled: true

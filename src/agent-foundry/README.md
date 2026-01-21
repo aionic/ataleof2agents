@@ -13,7 +13,7 @@ This directory contains the **declarative workflow configuration** for deploying
 
 ### Contract Files (Referenced)
 - `../../specs/001-weather-clothing-advisor/contracts/agent-prompts.md` - Agent system instructions
-- `../../specs/001-weather-clothing-advisor/contracts/weather-function-tool.json` - Tool schema
+- `../../specs/001-weather-clothing-advisor/contracts/weather-api-tool.json` - Tool schema
 
 ---
 
@@ -23,7 +23,7 @@ This directory contains the **declarative workflow configuration** for deploying
 
 1. **Azure Resources**:
    - Azure AI Foundry project created
-   - Weather Function deployed and accessible
+  - Weather API deployed and accessible
    - Application Insights configured
 
 2. **Environment Variables**:
@@ -34,7 +34,7 @@ This directory contains the **declarative workflow configuration** for deploying
    # Required variables:
    AZURE_AI_PROJECT_ENDPOINT=https://your-project.cognitiveservices.azure.com/
    AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4
-   WEATHER_FUNCTION_URL=https://your-function.azurewebsites.net/api/get_weather
+  WEATHER_API_URL=https://your-weather-api.azurecontainerapps.io
    APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=your-key
    ```
 
@@ -85,7 +85,7 @@ instructions_file: ../../specs/.../agent-prompts.md
 tools:
   - name: get_weather
     type: function
-    url: ${WEATHER_FUNCTION_URL}
+    url: ${WEATHER_API_URL}
     parameters: {...}
 telemetry:
   enabled: true
@@ -121,7 +121,7 @@ validation:
 The workflow orchestrates the following steps:
 
 1. **Parse User Input** - Extract zip code from natural language query
-2. **Get Weather Data** - Call weather function with zip code
+2. **Get Weather Data** - Call weather API with zip code
 3. **Generate Recommendations** - Analyze weather and create clothing suggestions
 4. **Format Response** - Present recommendations in user-friendly format
 
@@ -287,6 +287,6 @@ When modifying the workflow:
 - All configuration is externalized for easy customization
 - Telemetry is automatically integrated for observability
 - The workflow enforces all success criteria from the specification
-- Both Container Apps and Foundry deployments share the same weather function
+- Both Container Apps and Foundry deployments share the same weather API
 
 **Status**: ✅ Ready for deployment with YAML-based workflow orchestration

@@ -38,7 +38,7 @@ Legend: ⚪ Not Started | 🟡 In Progress | 🟢 Complete | 🔴 Blocked
 - ✅ Container starts without errors
 - ✅ Health endpoint responds (200 OK)
 - ✅ Chat endpoint processes weather requests
-- ✅ Agent successfully calls weather function
+- ✅ Agent successfully calls weather API
 - ✅ Response time under 5 seconds (SC-001)
 
 ---
@@ -195,7 +195,7 @@ if not azure_endpoint:
 2. **Run Locally with Azure Credentials**
    ```powershell
    docker run --rm `
-     -e WEATHER_FUNCTION_URL="https://func-weather-dev-ezbvua564mnlg.azurewebsites.net/api/get_weather" `
+     -e WEATHER_API_URL="https://your-weather-api.azurecontainerapps.io" `
      -e AZURE_FOUNDRY_ENDPOINT="https://anfoundy3lsww.services.ai.azure.com/" `
      -e AZURE_AI_MODEL_DEPLOYMENT_NAME="gpt-4.1" `
      -e APPLICATIONINSIGHTS_CONNECTION_STRING="$env:APPLICATIONINSIGHTS_CONNECTION_STRING" `
@@ -234,7 +234,7 @@ if not azure_endpoint:
 - [ ] Container starts without errors
 - [ ] Health endpoint returns 200
 - [ ] Chat endpoint processes request
-- [ ] Agent calls weather function
+- [ ] Agent calls weather API
 - [ ] Response includes clothing recommendations
 
 ---
@@ -313,7 +313,7 @@ if not azure_endpoint:
 3. Chat endpoint processes requests successfully
 4. Agent successfully:
    - Parses user zip code
-   - Calls weather function
+  - Calls weather API
    - Generates clothing recommendations
    - Returns formatted response
 5. Response time meets SC-001 (under 5 seconds)
@@ -464,8 +464,8 @@ docker build -f Dockerfile.foundry -t weather-advisor-foundry:local .
 # Run container
 Write-Host "`n🚀 Starting container on localhost:8088..." -ForegroundColor Yellow
 docker run --rm -d `
-    -p 8088:8088 `
-    -e WEATHER_FUNCTION_URL=$env:WEATHER_FUNCTION_URL `
+  -p 8088:8088 `
+  -e WEATHER_API_URL=$env:WEATHER_API_URL `
     -e AZURE_FOUNDRY_ENDPOINT=$env:AZURE_FOUNDRY_ENDPOINT `
     -e AZURE_AI_MODEL_DEPLOYMENT_NAME=$env:AZURE_AI_MODEL_DEPLOYMENT_NAME `
     -e APPLICATIONINSIGHTS_CONNECTION_STRING=$env:APPLICATIONINSIGHTS_CONNECTION_STRING `
@@ -568,7 +568,7 @@ services:
 
     # Environment variables
     env:
-      WEATHER_FUNCTION_URL: ${WEATHER_FUNCTION_URL}
+      WEATHER_API_URL: ${WEATHER_API_URL}
       AZURE_FOUNDRY_ENDPOINT: ${AZURE_FOUNDRY_ENDPOINT}
       AZURE_AI_MODEL_DEPLOYMENT_NAME: ${AZURE_AI_MODEL_DEPLOYMENT_NAME}
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING}
@@ -581,7 +581,7 @@ services:
 azd init
 
 # Set environment variables
-azd env set WEATHER_FUNCTION_URL "$env:WEATHER_FUNCTION_URL"
+azd env set WEATHER_API_URL "$env:WEATHER_API_URL"
 azd env set AZURE_FOUNDRY_ENDPOINT "$env:AZURE_FOUNDRY_ENDPOINT"
 azd env set AZURE_AI_MODEL_DEPLOYMENT_NAME "$env:AZURE_AI_MODEL_DEPLOYMENT_NAME"
 

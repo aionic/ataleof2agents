@@ -157,7 +157,7 @@ tool_definition = {
 ### Issue 3: Model Deployment Not Available
 **Symptom**: Registration succeeds but agent runs fail
 
-**Solution**: 
+**Solution**:
 1. Check deployments in portal
 2. Verify `gpt-4.1` name matches exactly
 3. May need to create deployment if missing

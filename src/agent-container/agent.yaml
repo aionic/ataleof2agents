@@ -22,7 +22,7 @@ tools:
   - name: get_weather
     type: function
     description: Retrieves current weather data for a US zip code including temperature, conditions, humidity, and wind speed
-    url: ${WEATHER_FUNCTION_URL}  # Azure Function endpoint
+    url: ${WEATHER_API_URL}  # Weather API endpoint
     method: GET
     parameters:
       type: object

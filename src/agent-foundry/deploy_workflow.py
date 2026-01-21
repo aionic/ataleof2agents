@@ -36,12 +36,12 @@ class WorkflowDeployment:
     def __init__(self):
         """Initialize workflow deployment."""
         self.project_endpoint = os.getenv("AZURE_AI_PROJECT_ENDPOINT")
-        self.weather_function_url = os.getenv("WEATHER_FUNCTION_URL")
+        self.weather_api_url = os.getenv("WEATHER_API_URL")
 
         if not self.project_endpoint:
             raise ValueError("AZURE_AI_PROJECT_ENDPOINT environment variable is required")
-        if not self.weather_function_url:
-            raise ValueError("WEATHER_FUNCTION_URL environment variable is required")
+        if not self.weather_api_url:
+            raise ValueError("WEATHER_API_URL environment variable is required")
 
         # Initialize Azure AI Project Client
         credential = DefaultAzureCredential()
