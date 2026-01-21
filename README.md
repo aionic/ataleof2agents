@@ -1,4 +1,8 @@
-# Agent Framework Reference Implementation
+# A Tale of Two Agents
+
+<p align="center">
+  <img src="ataleoftwoagents.jpg" alt="A Tale of Two Agents" width="600">
+</p>
 
 **Build once, deploy anywhere**: A practical reference for building AI agents that work in both self-hosted (Azure Container Apps) and managed (Azure AI Foundry) environments.
 
