@@ -238,7 +238,7 @@ Write-Host "✅ Deployment completed successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "📍 Endpoints:" -ForegroundColor Cyan
 Write-Host "   Agent App: $containerAppUrl" -ForegroundColor White
-Write-Host "   Weather API: $weatherApiUrl (internal only)" -ForegroundColor White
+Write-Host "   Weather API: $weatherApiUrl (external access enabled)" -ForegroundColor White
 Write-Host ""
 Write-Host "🏷️  Image Versions:" -ForegroundColor Cyan
 Write-Host "   Agent: $ContainerImage" -ForegroundColor White
