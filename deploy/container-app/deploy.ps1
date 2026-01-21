@@ -93,7 +93,7 @@ if (!$SkipBuild) {
         Write-Host "❌ Failed to build weather-api image" -ForegroundColor Red
         exit 1
     }
-    
+
     # Also tag as latest
     docker tag $WeatherApiImage "$ContainerRegistry.azurecr.io/weather-api:latest"
 
@@ -112,7 +112,7 @@ if (!$SkipBuild) {
         Write-Host "❌ Failed to build weather-advisor image" -ForegroundColor Red
         exit 1
     }
-    
+
     # Also tag as latest
     docker tag $ContainerImage "$ContainerRegistry.azurecr.io/weather-advisor:latest"
 
@@ -148,7 +148,7 @@ $RegistryPassword = $creds.passwords[0].value
 # Verify images exist in registry (if not built in this run)
 if ($SkipBuild) {
     Write-Host "📦 Verifying images exist in registry..." -ForegroundColor Yellow
-    
+
     # When skipping build, use the ImageTag parameter (allows deploying specific versions)
     $ContainerImage = "$ContainerRegistry.azurecr.io/weather-advisor:$ImageTag"
     $WeatherApiImage = "$ContainerRegistry.azurecr.io/weather-api:$ImageTag"

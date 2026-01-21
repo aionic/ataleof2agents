@@ -32,7 +32,7 @@ This POC demonstrates **dual workflow orchestration patterns** for AI agents:
 
 **Shared Components**:
 
-- Weather Function (Azure Functions) - used by both deployments as workflow tool
+- Weather API Container (Azure Container Apps) - FastAPI service for weather data
 - Application Insights - unified telemetry backend
 - OpenWeatherMap API - external weather data source
 - Workflow Pattern - 4-step orchestration in both deployments

@@ -4,22 +4,23 @@ AI agent that provides personalized clothing recommendations based on current we
 
 ## Overview
 
-This POC demonstrates **workflow orchestration** for AI agents using two Azure deployment patterns:
+This POC demonstrates a **two-container microservices architecture** for AI agents:
 
-1. **Container Apps Workflow**: Programmatic workflow orchestration with Python (WorkflowOrchestrator)
-2. **Foundry Workflow Service**: Declarative workflow orchestration with YAML configuration
+1. **Agent Container**: Workflow orchestration with Microsoft Agent Framework
+2. **Weather API Container**: FastAPI service for weather data retrieval
 
-**Both deployments implement the same 4-step workflow pattern**:
-1. **Parse Input**: Extract zip code from user message
-2. **Get Weather**: Call Azure Function tool for current conditions
-3. **Generate Recommendations**: AI reasoning for clothing advice
-4. **Format Response**: Conversational output with telemetry
+**Architecture implements the following pattern**:
+1. **User Request**: Sent to agent container endpoint
+2. **Parse Input**: Extract zip code from user message
+3. **Get Weather**: Call internal weather API container via HTTP
+4. **Generate Recommendations**: AI reasoning for clothing advice with Azure OpenAI
+5. **Format Response**: Conversational output with telemetry
 
 This architecture showcases:
-- **Workflow Pattern**: Multi-step orchestration with dependencies
-- **Dual Implementation**: Programmatic (Python) vs Declarative (YAML)
-- **Shared Tools**: Both use the same Azure Function for weather data
-- **Consistent Telemetry**: Application Insights tracking across both deployments
+- **Microservices Pattern**: Separation of concerns (agent logic vs. data services)
+- **Internal Networking**: Containers communicate via Container Apps internal ingress
+- **Managed Identity**: End-to-end authentication without keys
+- **Version Tracking**: Git hash + timestamp for deployment traceability
 
 ## Features
 
@@ -29,51 +30,46 @@ This architecture showcases:
 
 ## Architecture
 
-### Container Apps Workflow (Programmatic)
+### Current Deployment (Container Apps)
 ```
-User Request → FastAPI Server
+User Request → Agent Container (External Ingress)
                     ↓
            WorkflowOrchestrator
                     ↓
-    ┌───────────────┴───────────────┐
-    │  4-Step Workflow Execution    │
-    ├───────────────────────────────┤
-    │ 1. Parse Input (zip code)     │
-    │ 2. Get Weather (Function)     │
-    │ 3. Generate Recommendations   │
-    │ 4. Format Response            │
-    └───────────────┬───────────────┘
-                    ↓
-          Application Insights
+    ┌───────────────┴─────────────────┐
+    │  Workflow Execution             │
+    ├─────────────────────────────────┤
+    │ 1. Parse Input (zip code)       │
+    │ 2. Call Weather API Container   │
+    │    (Internal HTTP)              │
+    │ 3. Generate Recommendations     │
+    │    (Azure OpenAI via Foundry)   │
+    │ 4. Format Response              │
+    └─────────────────┬───────────────┘
+                      ↓
+            Application Insights
 ```
 
-### Foundry Workflow (Declarative)
+### Weather API Container (Internal)
 ```
-User Request → Foundry Agent Service
-                    ↓
-            YAML Workflow Engine
-                    ↓
-    ┌───────────────┴───────────────┐
-    │  4-Step Workflow (YAML)       │
-    ├───────────────────────────────┤
-    │ 1. Parse Input (agent.yaml)   │
-    │ 2. Get Weather (tool call)    │
-    │ 3. Generate Recommendations   │
-    │ 4. Format Response            │
-    └───────────────┬───────────────┘
-                    ↓
-          Application Insights
+Agent Container → Weather API Container
+                       ↓
+              FastAPI /api/weather
+                       ↓
+             OpenWeatherMap API
+                       ↓
+              Weather Data JSON
 ```
 
-### Shared Infrastructure
+### Planned: Azure Foundry Deployment
 ```
-Both Workflows
-    ↓
-Azure Function (get_weather tool)
-    ↓
-OpenWeatherMap API
-    ↓
-Clothing Recommendations
+User Request → Azure AI Foundry (Managed Agent)
+                    ↓
+              OpenAPI Tool Call
+                    ↓
+         Weather API Container (External)
+                    ↓
+              OpenWeatherMap API
 ```
 
 ## Technology Stack
@@ -81,14 +77,14 @@ Clothing Recommendations
 - **Language**: Python 3.11
 - **Package Manager**: uv
 - **Agent Framework**: [Microsoft Agent Framework](https://github.com/microsoft/agent-framework)
-- **Workflow Patterns**:
-  - Container Apps: WorkflowOrchestrator (programmatic)
-  - Foundry: agent.yaml + workflow.yaml (declarative)
-- **Configuration**: YAML (agent.yaml, workflow.yaml for both deployments)
-- **Web Framework**: FastAPI (Container Apps)
-- **Functions**: Azure Functions v2 (Python)
+- **Workflow**: WorkflowOrchestrator (programmatic Python orchestration)
+- **Configuration**: YAML (agent.yaml, workflow.yaml)
+- **Web Framework**: FastAPI (both containers)
+- **Containers**: Docker multi-stage builds with uv package manager
+- **Deployment**: Azure Container Apps with managed identity
 - **Telemetry**: Azure Application Insights
 - **Region**: Sweden Central
+- **Versioning**: Git hash + timestamp (e.g., 5f000f4-20260121-093731)
 
 ## Quick Start
 

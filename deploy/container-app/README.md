@@ -8,7 +8,7 @@ This directory contains the deployment configuration for the Weather-Based Cloth
 Container Apps Deployment
 ├── Container App (FastAPI + Azure Agent Framework)
 │   └── Calls Weather Function via HTTP
-├── Azure Function (Weather API)
+├── Weather API Container (Internal)
 │   └── Calls OpenWeatherMap API
 └── Application Insights
     └── Unified telemetry for both components

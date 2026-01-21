@@ -294,7 +294,7 @@ Be helpful, concise, and practical in your recommendations."""
 
             # Process with agent - now properly async
             agent_response = await self.agent.run(message)
-            
+
             # Extract text from AgentResponse object
             response_text = agent_response.text if hasattr(agent_response, 'text') else str(agent_response)
 
