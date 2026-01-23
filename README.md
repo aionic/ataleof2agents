@@ -17,10 +17,32 @@
 
 You're evaluating Agent Framework and need to decide:
 - **Container Apps** (self-hosted): Full control, faster responses
-- **Foundry** (managed): No infrastructure, built-in orchestration
-- **Both**: Why not have options?
+- **Foundry Hosted** (managed): No infrastructure, Foundry protocol compatibility
+- **Both**: Same code, multiple deployment targets!
 
 **This repo shows you**: Same agent code works in both environments. Choose based on your needs, not code limitations.
+
+---
+
+## Unified Agent Package 🆕
+
+The **unified agent package** (`src/agent/`) enables true "write once, deploy anywhere":
+
+```
+src/agent/
+├── main.py           # Unified entry point (responses/legacy/interactive modes)
+├── core/             # Agent logic, models, business rules
+├── hosting/          # Responses API server for Foundry protocol
+├── tools/            # Weather tool implementation
+└── telemetry/        # Application Insights integration
+```
+
+**Run modes:**
+- `--mode responses` → Foundry Hosted compatible (`/responses` on port 8088)
+- `--mode legacy` → Container Apps compatible (`/chat` on port 8000)
+- `--mode interactive` → Local testing
+
+👉 **[Unified Agent Documentation](./docs/UNIFIED-AGENT.md)**
 
 ---
 
@@ -46,14 +68,14 @@ cp .env.example .env
 ./deploy/container-app/deploy.ps1
 ```
 
-### Deploy to Foundry
+### Deploy to Foundry Hosted
 ```powershell
-# Register agent in Foundry
-cd src/agent-foundry
-python register_agent.py
+# Build and push container
+docker build -f Dockerfile.agent --target foundry -t myregistry.azurecr.io/weather-advisor:v1 .
+docker push myregistry.azurecr.io/weather-advisor:v1
 
-# Test it
-python test_agent.py
+# Register with Foundry
+python deploy/scripts/azure_agent_manager.py
 ```
 
 **⏱️ Total time**: ~15 minutes per deployment
@@ -74,23 +96,23 @@ python test_agent.py
 - Managed identity authentication
 - Application Insights monitoring
 
-👉 **[Container Apps Deployment Guide](./docs/DEPLOYMENT-CONTAINER-APPS.md)**
+👉 **[Container Apps Deployment Guide](./docs/guides/DEPLOYMENT-CONTAINER-APPS.md)**
 
 ---
 
-### ☁️ Azure AI Foundry (Managed)
+### ☁️ Azure AI Foundry Hosted (Managed)
 **Best for**:
 - Rapid development
 - No infrastructure management
-- Built-in agent orchestration
+- Foundry Responses API compatibility
 
 **You get**:
+- Container-based agent with Foundry protocol
 - Managed agent runtime
-- OpenAPI tool integration
-- Built-in conversation threads
-- Foundry portal UI
+- Built-in conversation management
+- Foundry portal integration
 
-👉 **[Foundry Deployment Guide](./docs/DEPLOYMENT-FOUNDRY.md)**
+👉 **[Foundry Deployment Guide](./docs/guides/DEPLOYMENT-FOUNDRY.md)**
 
 ---
 

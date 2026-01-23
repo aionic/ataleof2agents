@@ -3,6 +3,8 @@
 Test Container Apps Agent Deployment
 
 Tests the self-hosted agent running on Azure Container Apps.
+Works with both legacy (agent-container) and unified (agent) packages.
+
 Requires: Agent deployed and AGENT_URL environment variable set.
 """
 
@@ -16,6 +18,10 @@ load_dotenv()
 
 # Configuration
 AGENT_URL = os.getenv("AGENT_URL", "https://ca-weather-dev-ezbvua.mangomushroom-3560f614.swedencentral.azurecontainerapps.io")
+
+# Determine which endpoint to use based on deployment mode
+# Legacy mode uses /chat, unified mode can use /responses
+USE_RESPONSES_API = os.getenv("USE_RESPONSES_API", "false").lower() == "true"
 
 # Test cases
 TEST_CASES = [

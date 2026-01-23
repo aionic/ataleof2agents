@@ -1,5 +1,6 @@
 # Dockerfile for Container Apps deployment
 # Multi-stage build for optimized image size
+# Updated to use unified src/agent package
 
 FROM python:3.11-slim AS builder
 
@@ -23,22 +24,21 @@ WORKDIR /app
 # Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
-# Copy application code
-COPY src/shared/ ./src/shared/
-COPY src/agent-container/ ./src/agent-container/
+# Copy unified agent package
+COPY src/agent/ ./agent/
 
-# Set Python path to include both directories
-ENV PYTHONPATH=/app/src/agent-container:/app/src/shared:/app/src
+# Copy agent prompts contract
+COPY specs/001-weather-clothing-advisor/contracts ./specs/001-weather-clothing-advisor/contracts
 
-# Expose port
+# Set Python path
+ENV PYTHONPATH=/app
+
+# Expose port (legacy mode uses 8000)
 EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/health')"
 
-# Set working directory to agent-container so imports work correctly
-WORKDIR /app/src/agent-container
-
-# Run the application
-CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the agent in legacy mode (Container Apps /chat endpoint)
+CMD ["python", "-m", "agent.main", "--mode", "legacy", "--port", "8000"]

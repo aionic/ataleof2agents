@@ -2,13 +2,28 @@
 Azure AI Agent Manager
 
 This module provides functionality to create and manage Azure AI Agents
-using container images.
+using container images. Supports the unified agent package for deployment
+to Azure AI Foundry Hosted Agents.
+
+Usage:
+    # Interactive mode
+    python azure_agent_manager.py
+
+    # From environment variables
+    python azure_agent_manager.py --from-env
+
+    # List agents
+    python azure_agent_manager.py --list
+
+    # Delete agent
+    python azure_agent_manager.py --delete <agent_name>
 """
 
+import argparse
 import os
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, List
 
 from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import (
@@ -143,6 +158,54 @@ class AzureAgentManager:
             logger.error(f"Failed to create agent version: {e}")
             raise
 
+    def list_agents(self) -> List[object]:
+        """
+        List all agents in the project.
+
+        Returns:
+            List of agent objects.
+        """
+        try:
+            agents = self.client.agents.list_agents()
+            agent_list = list(agents)
+            logger.info(f"Found {len(agent_list)} agents")
+            return agent_list
+        except AzureError as e:
+            logger.error(f"Failed to list agents: {e}")
+            raise
+
+    def get_agent(self, agent_id: str) -> object:
+        """
+        Get an agent by ID.
+
+        Args:
+            agent_id: The agent ID.
+
+        Returns:
+            The agent object.
+        """
+        try:
+            agent = self.client.agents.get_agent(agent_id)
+            logger.info(f"Found agent: {agent.name} (ID: {agent.id})")
+            return agent
+        except AzureError as e:
+            logger.error(f"Failed to get agent {agent_id}: {e}")
+            raise
+
+    def delete_agent(self, agent_id: str) -> None:
+        """
+        Delete an agent.
+
+        Args:
+            agent_id: The agent ID to delete.
+        """
+        try:
+            self.client.agents.delete_agent(agent_id)
+            logger.info(f"Successfully deleted agent: {agent_id}")
+        except AzureError as e:
+            logger.error(f"Failed to delete agent {agent_id}: {e}")
+            raise
+
     def close(self) -> None:
         """Close the client connection."""
         if self._client is not None:
@@ -200,24 +263,151 @@ def create_agent_from_env() -> object:
         return manager.create_agent_version(agent_config)
 
 
-# Example usage
-if __name__ == "__main__":
-    # Example 1: Direct configuration
-    project_config = ProjectConfig(
-        endpoint="https://petermessina-8930-resource.services.ai.azure.com/api/projects/petermessina-8930"
-    )
+def interactive_create() -> None:
+    """Interactive mode to create an agent with prompts."""
+    print("\n" + "=" * 60)
+    print("Azure AI Agent Manager - Interactive Mode")
+    print("=" * 60)
 
+    # Get endpoint
+    default_endpoint = os.environ.get("AZURE_AI_PROJECT_ENDPOINT", "")
+    endpoint = input(f"Project endpoint [{default_endpoint}]: ").strip() or default_endpoint
+    if not endpoint:
+        print("Error: Endpoint is required")
+        return
+
+    # Get agent name
+    default_name = os.environ.get("AGENT_NAME", "weather-clothing-advisor")
+    agent_name = input(f"Agent name [{default_name}]: ").strip() or default_name
+
+    # Get container image
+    default_image = os.environ.get("AGENT_IMAGE", "")
+    agent_image = input(f"Container image [{default_image}]: ").strip() or default_image
+    if not agent_image:
+        print("Error: Container image is required")
+        return
+
+    # Get optional parameters
+    cpu = input("CPU allocation [1]: ").strip() or "1"
+    memory = input("Memory allocation [2Gi]: ").strip() or "2Gi"
+    protocol_version = input("Protocol version [v6]: ").strip() or "v6"
+
+    print("\n" + "-" * 60)
+    print("Configuration:")
+    print(f"  Endpoint: {endpoint}")
+    print(f"  Agent Name: {agent_name}")
+    print(f"  Image: {agent_image}")
+    print(f"  CPU: {cpu}, Memory: {memory}")
+    print(f"  Protocol: {protocol_version}")
+    print("-" * 60)
+
+    confirm = input("\nCreate agent? [y/N]: ").strip().lower()
+    if confirm != "y":
+        print("Cancelled.")
+        return
+
+    project_config = ProjectConfig(endpoint=endpoint)
     agent_config = AgentConfig(
-        agent_name="my-agent",
-        image="acrdemocontent001.azurecr.io/my-agent:v6",
-        cpu="1",
-        memory="2Gi",
-        protocol_version="v6",
+        agent_name=agent_name,
+        image=agent_image,
+        cpu=cpu,
+        memory=memory,
+        protocol_version=protocol_version,
     )
 
     with AzureAgentManager(project_config) as manager:
         agent = manager.create_agent_version(agent_config)
-        print(f"Created agent: {agent}")
+        print(f"\n✓ Agent created successfully!")
+        print(f"  Agent ID: {agent.id}")
+        print(f"  Name: {agent.name}")
 
-    # Example 2: Using environment variables
-    # agent = create_agent_from_env()
+
+def main():
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(
+        description="Azure AI Agent Manager - Create and manage Foundry Hosted Agents",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Interactive mode
+  python azure_agent_manager.py
+
+  # Create from environment variables
+  python azure_agent_manager.py --from-env
+
+  # List all agents
+  python azure_agent_manager.py --list
+
+  # Delete an agent
+  python azure_agent_manager.py --delete <agent_id>
+
+Environment Variables:
+  AZURE_AI_PROJECT_ENDPOINT  - Project endpoint URL
+  AGENT_NAME                 - Name for the agent
+  AGENT_IMAGE                - Container image (e.g., myregistry.azurecr.io/agent:v1)
+  AGENT_CPU                  - CPU allocation (default: 1)
+  AGENT_MEMORY               - Memory allocation (default: 2Gi)
+  AGENT_PROTOCOL_VERSION     - Protocol version (default: v6)
+        """
+    )
+
+    parser.add_argument(
+        "--from-env",
+        action="store_true",
+        help="Create agent from environment variables"
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List all agents in the project"
+    )
+    parser.add_argument(
+        "--delete",
+        metavar="AGENT_ID",
+        help="Delete an agent by ID"
+    )
+    parser.add_argument(
+        "--endpoint",
+        help="Azure AI Project endpoint (overrides AZURE_AI_PROJECT_ENDPOINT)"
+    )
+
+    args = parser.parse_args()
+
+    # Get endpoint
+    endpoint = args.endpoint or os.environ.get("AZURE_AI_PROJECT_ENDPOINT")
+
+    if args.list:
+        if not endpoint:
+            print("Error: --endpoint or AZURE_AI_PROJECT_ENDPOINT required")
+            return 1
+        project_config = ProjectConfig(endpoint=endpoint)
+        with AzureAgentManager(project_config) as manager:
+            agents = manager.list_agents()
+            print(f"\nFound {len(agents)} agents:")
+            for agent in agents:
+                print(f"  - {agent.name} (ID: {agent.id})")
+        return 0
+
+    if args.delete:
+        if not endpoint:
+            print("Error: --endpoint or AZURE_AI_PROJECT_ENDPOINT required")
+            return 1
+        project_config = ProjectConfig(endpoint=endpoint)
+        with AzureAgentManager(project_config) as manager:
+            manager.delete_agent(args.delete)
+            print(f"✓ Agent {args.delete} deleted")
+        return 0
+
+    if args.from_env:
+        agent = create_agent_from_env()
+        print(f"✓ Agent created: {agent.id}")
+        return 0
+
+    # Default: interactive mode
+    interactive_create()
+    return 0
+
+
+# Entry point
+if __name__ == "__main__":
+    exit(main())
