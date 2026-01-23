@@ -1,0 +1,79 @@
+# Unified Dockerfile for Weather-Based Clothing Advisor Agent
+# Works for both Container Apps and Foundry Hosted deployments
+#
+# Build modes:
+#   - FOUNDRY: Exposes /responses endpoint on port 8088
+#   - CONTAINER_APP: Exposes /chat endpoint on port 8000
+#   - BOTH: Exposes both endpoints (default)
+
+FROM python:3.11-slim AS base
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/agent /app/agent
+COPY specs/001-weather-clothing-advisor/contracts /app/specs/001-weather-clothing-advisor/contracts
+
+# Set Python path
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Default environment variables
+ENV LOG_LEVEL=INFO
+ENV ENVIRONMENT=production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8088}/health || exit 1
+
+# ============================================================
+# Foundry Hosted Mode (default)
+# ============================================================
+FROM base AS foundry
+
+# Foundry uses port 8088
+ENV PORT=8088
+EXPOSE 8088
+
+# Run in responses mode
+CMD ["python", "-m", "agent.main", "--mode", "responses", "--port", "8088"]
+
+# ============================================================
+# Container Apps Mode
+# ============================================================
+FROM base AS container-app
+
+# Container Apps uses port 8000
+ENV PORT=8000
+EXPOSE 8000
+
+# Run in legacy mode
+CMD ["python", "-m", "agent.main", "--mode", "legacy", "--port", "8000"]
+
+# ============================================================
+# Dual Mode (both endpoints)
+# ============================================================
+FROM base AS dual
+
+# Expose both ports
+ENV PORT=8088
+EXPOSE 8088
+EXPOSE 8000
+
+# Run in responses mode by default (Container Apps can still call /responses)
+CMD ["python", "-m", "agent.main", "--mode", "responses", "--port", "8088"]
+
+# Default to foundry mode
+FROM foundry
