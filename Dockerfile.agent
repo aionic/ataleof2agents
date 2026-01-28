@@ -11,16 +11,20 @@ FROM python:3.11-slim AS base
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies and uv
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Add uv to PATH
+ENV PATH="/root/.local/bin:$PATH"
 
 # Copy dependency file from agent package
 COPY src/agent/requirements.txt .
 
-# Install Python dependencies (some may not be available yet, use --ignore-missing)
-RUN pip install --no-cache-dir fastapi uvicorn requests httpx pydantic anyio azure-identity || true
+# Install Python dependencies using uv (much faster than pip)
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Copy application code
 COPY src/agent /app/agent

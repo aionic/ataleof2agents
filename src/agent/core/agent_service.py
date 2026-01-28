@@ -315,7 +315,11 @@ Be helpful, concise, and practical in your recommendations."""
                 conversation.append({"role": "user", "content": message})
 
                 # Process with agent using Agent Framework's run method
-                response_text = await self.agent.run(message)
+                # The run method returns an AgentRunResponse object
+                result = await self.agent.run(message)
+                
+                # Extract text from the response object
+                response_text = result.text if hasattr(result, 'text') else str(result)
 
                 # Add assistant response to history
                 conversation.append({"role": "assistant", "content": response_text})
