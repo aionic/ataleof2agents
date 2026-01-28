@@ -5,9 +5,9 @@ description = "Weather-Based Clothing Advisor - POC demonstrating dual deploymen
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    # Azure Agent Framework (https://github.com/microsoft/agent-framework)
-    "agent-framework-core",
-    "agent-framework-azure-ai",
+    # Microsoft Agent Framework (https://github.com/microsoft/agent-framework)
+    # Install with: uv pip install agent-framework --pre
+    "agent-framework",
 
     # Azure AI Foundry (for Foundry deployment)
     "azure-ai-projects>=1.0.0",

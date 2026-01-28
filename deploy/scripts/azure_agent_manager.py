@@ -166,7 +166,7 @@ class AzureAgentManager:
             List of agent objects.
         """
         try:
-            agents = self.client.agents.list_agents()
+            agents = self.client.agents.list()
             agent_list = list(agents)
             logger.info(f"Found {len(agent_list)} agents")
             return agent_list
@@ -174,36 +174,36 @@ class AzureAgentManager:
             logger.error(f"Failed to list agents: {e}")
             raise
 
-    def get_agent(self, agent_id: str) -> object:
+    def get_agent(self, agent_name: str) -> object:
         """
-        Get an agent by ID.
+        Get an agent by name.
 
         Args:
-            agent_id: The agent ID.
+            agent_name: The agent name.
 
         Returns:
             The agent object.
         """
         try:
-            agent = self.client.agents.get_agent(agent_id)
-            logger.info(f"Found agent: {agent.name} (ID: {agent.id})")
+            agent = self.client.agents.get(agent_name)
+            logger.info(f"Found agent: {agent.name}")
             return agent
         except AzureError as e:
-            logger.error(f"Failed to get agent {agent_id}: {e}")
+            logger.error(f"Failed to get agent {agent_name}: {e}")
             raise
 
-    def delete_agent(self, agent_id: str) -> None:
+    def delete_agent(self, agent_name: str) -> None:
         """
         Delete an agent.
 
         Args:
-            agent_id: The agent ID to delete.
+            agent_name: The agent name to delete.
         """
         try:
-            self.client.agents.delete_agent(agent_id)
-            logger.info(f"Successfully deleted agent: {agent_id}")
+            self.client.agents.delete(agent_name)
+            logger.info(f"Successfully deleted agent: {agent_name}")
         except AzureError as e:
-            logger.error(f"Failed to delete agent {agent_id}: {e}")
+            logger.error(f"Failed to delete agent {agent_name}: {e}")
             raise
 
     def close(self) -> None:

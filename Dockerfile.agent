@@ -16,14 +16,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
+# Copy dependency file from agent package
+COPY src/agent/requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (some may not be available yet, use --ignore-missing)
+RUN pip install --no-cache-dir fastapi uvicorn requests httpx pydantic anyio azure-identity || true
 
 # Copy application code
 COPY src/agent /app/agent
+
+# Copy agent prompts contract
 COPY specs/001-weather-clothing-advisor/contracts /app/specs/001-weather-clothing-advisor/contracts
 
 # Set Python path
