@@ -5,6 +5,8 @@ This module provides functionality to create and manage Azure AI Agents
 using container images. Supports the unified agent package for deployment
 to Azure AI Foundry Hosted Agents.
 
+Uses REST API directly since SDK models are not yet available.
+
 Usage:
     # Interactive mode
     python azure_agent_manager.py
@@ -17,26 +19,27 @@ Usage:
 
     # Delete agent
     python azure_agent_manager.py --delete <agent_name>
+
+    # Start agent
+    python azure_agent_manager.py --start <agent_name>
 """
 
 import argparse
 import os
 import logging
+import json
+import requests
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
-from azure.ai.projects import AIProjectClient
-from azure.ai.projects.models import (
-    ImageBasedHostedAgentDefinition,
-    ProtocolVersionRecord,
-    AgentProtocol,
-)
-from azure.identity import DefaultAzureCredential
-from azure.core.exceptions import AzureError, ClientAuthenticationError
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# API Version for Foundry Hosted Agents
+API_VERSION = "2025-05-15-preview"
 
 
 @dataclass
@@ -47,7 +50,7 @@ class AgentConfig:
     image: str
     cpu: str = "1"
     memory: str = "2Gi"
-    protocol: AgentProtocol = field(default=AgentProtocol.RESPONSES)
+    protocol: str = "responses"
     protocol_version: str = "v6"
 
     def validate(self) -> None:
@@ -61,6 +64,23 @@ class AgentConfig:
         if not self.memory:
             raise ValueError("memory is required")
 
+    def to_request_body(self) -> Dict[str, Any]:
+        """Convert to REST API request body."""
+        return {
+            "properties": {
+                "definition": {
+                    "type": "ImageBased",
+                    "image": self.image,
+                    "cpu": self.cpu,
+                    "memory": self.memory,
+                },
+                "protocolVersion": {
+                    "name": self.protocol_version,
+                    "protocol": self.protocol,
+                },
+            }
+        }
+
 
 @dataclass
 class ProjectConfig:
@@ -68,20 +88,34 @@ class ProjectConfig:
 
     endpoint: str
     credential: Optional[DefaultAzureCredential] = None
+    _token_provider: Optional[Any] = field(default=None, repr=False)
 
     def __post_init__(self):
         if self.credential is None:
             self.credential = DefaultAzureCredential()
+        self._token_provider = get_bearer_token_provider(
+            self.credential, "https://ai.azure.com/.default"
+        )
 
     def validate(self) -> None:
         """Validate the project configuration."""
         if not self.endpoint:
             raise ValueError("endpoint is required")
 
+    def get_access_token(self) -> str:
+        """Get an access token for the Azure Cognitive Services scope."""
+        return self._token_provider()
+
+    @property
+    def base_url(self) -> str:
+        """Get the base URL for API calls."""
+        return self.endpoint.rstrip("/")
+
 
 class AzureAgentManager:
     """
     Manages Azure AI Agents lifecycle including creation, versioning, and deployment.
+    Uses REST API directly since SDK models are not yet available.
     """
 
     def __init__(self, project_config: ProjectConfig):
@@ -93,27 +127,21 @@ class AzureAgentManager:
         """
         project_config.validate()
         self._project_config = project_config
-        self._client: Optional[AIProjectClient] = None
 
-    @property
-    def client(self) -> AIProjectClient:
-        """Lazily initialize and return the AI Project client."""
-        if self._client is None:
-            try:
-                self._client = AIProjectClient(
-                    endpoint=self._project_config.endpoint,
-                    credential=self._project_config.credential,
-                )
-                logger.info("Successfully initialized AIProjectClient")
-            except ClientAuthenticationError as e:
-                logger.error(f"Authentication failed: {e}")
-                raise
-            except AzureError as e:
-                logger.error(f"Failed to initialize AIProjectClient: {e}")
-                raise
-        return self._client
+    def _get_headers(self) -> Dict[str, str]:
+        """Get headers with authorization token."""
+        token = self._project_config.get_access_token()
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
 
-    def create_agent_version(self, agent_config: AgentConfig) -> object:
+    def _api_url(self, path: str) -> str:
+        """Build full API URL with version."""
+        base = self._project_config.base_url
+        return f"{base}{path}?api-version={API_VERSION}"
+
+    def create_agent_version(self, agent_config: AgentConfig) -> Dict[str, Any]:
         """
         Create a new version of an agent from a container image.
 
@@ -121,11 +149,11 @@ class AzureAgentManager:
             agent_config: Configuration for the agent to create.
 
         Returns:
-            The created agent object.
+            The created agent response.
 
         Raises:
             ValueError: If the configuration is invalid.
-            AzureError: If there's an error communicating with Azure.
+            requests.HTTPError: If there's an error communicating with Azure.
         """
         agent_config.validate()
 
@@ -133,48 +161,44 @@ class AzureAgentManager:
         logger.info(f"  Image: {agent_config.image}")
         logger.info(f"  CPU: {agent_config.cpu}, Memory: {agent_config.memory}")
 
-        try:
-            definition = ImageBasedHostedAgentDefinition(
-                container_protocol_versions=[
-                    ProtocolVersionRecord(
-                        protocol=agent_config.protocol,
-                        version=agent_config.protocol_version,
-                    )
-                ],
-                cpu=agent_config.cpu,
-                memory=agent_config.memory,
-                image=agent_config.image,
-            )
+        url = self._api_url(f"/hostedagents/{agent_config.agent_name}/versions/1")
+        body = agent_config.to_request_body()
 
-            agent = self.client.agents.create_version(
-                agent_name=agent_config.agent_name,
-                definition=definition,
-            )
+        logger.debug(f"PUT {url}")
+        logger.debug(f"Body: {json.dumps(body, indent=2)}")
 
-            logger.info(f"Successfully created agent version for '{agent_config.agent_name}'")
-            return agent
+        response = requests.put(url, headers=self._get_headers(), json=body)
 
-        except AzureError as e:
-            logger.error(f"Failed to create agent version: {e}")
-            raise
+        if response.status_code >= 400:
+            logger.error(f"Failed to create agent: {response.status_code}")
+            logger.error(f"Response: {response.text}")
+            response.raise_for_status()
 
-    def list_agents(self) -> List[object]:
+        result = response.json()
+        logger.info(f"Successfully created agent version for '{agent_config.agent_name}'")
+        return result
+
+    def list_agents(self) -> List[Dict[str, Any]]:
         """
         List all agents in the project.
 
         Returns:
             List of agent objects.
         """
-        try:
-            agents = self.client.agents.list()
-            agent_list = list(agents)
-            logger.info(f"Found {len(agent_list)} agents")
-            return agent_list
-        except AzureError as e:
-            logger.error(f"Failed to list agents: {e}")
-            raise
+        url = self._api_url("/hostedagents")
+        response = requests.get(url, headers=self._get_headers())
 
-    def get_agent(self, agent_name: str) -> object:
+        if response.status_code >= 400:
+            logger.error(f"Failed to list agents: {response.status_code}")
+            logger.error(f"Response: {response.text}")
+            response.raise_for_status()
+
+        result = response.json()
+        agents = result.get("value", [])
+        logger.info(f"Found {len(agents)} agents")
+        return agents
+
+    def get_agent(self, agent_name: str) -> Dict[str, Any]:
         """
         Get an agent by name.
 
@@ -184,13 +208,16 @@ class AzureAgentManager:
         Returns:
             The agent object.
         """
-        try:
-            agent = self.client.agents.get(agent_name)
-            logger.info(f"Found agent: {agent.name}")
-            return agent
-        except AzureError as e:
-            logger.error(f"Failed to get agent {agent_name}: {e}")
-            raise
+        url = self._api_url(f"/hostedagents/{agent_name}")
+        response = requests.get(url, headers=self._get_headers())
+
+        if response.status_code >= 400:
+            logger.error(f"Failed to get agent {agent_name}: {response.status_code}")
+            response.raise_for_status()
+
+        result = response.json()
+        logger.info(f"Found agent: {agent_name}")
+        return result
 
     def delete_agent(self, agent_name: str) -> None:
         """
@@ -199,19 +226,61 @@ class AzureAgentManager:
         Args:
             agent_name: The agent name to delete.
         """
-        try:
-            self.client.agents.delete(agent_name)
-            logger.info(f"Successfully deleted agent: {agent_name}")
-        except AzureError as e:
-            logger.error(f"Failed to delete agent {agent_name}: {e}")
-            raise
+        url = self._api_url(f"/hostedagents/{agent_name}")
+        response = requests.delete(url, headers=self._get_headers())
+
+        if response.status_code >= 400 and response.status_code != 404:
+            logger.error(f"Failed to delete agent {agent_name}: {response.status_code}")
+            response.raise_for_status()
+
+        logger.info(f"Successfully deleted agent: {agent_name}")
+
+    def start_agent(self, agent_name: str, version: str = "1") -> Dict[str, Any]:
+        """
+        Start an agent.
+
+        Args:
+            agent_name: The agent name.
+            version: The agent version to start (default: "1").
+
+        Returns:
+            The operation result.
+        """
+        url = self._api_url(f"/hostedagents/{agent_name}/versions/{version}:start")
+        response = requests.post(url, headers=self._get_headers())
+
+        if response.status_code >= 400:
+            logger.error(f"Failed to start agent {agent_name}: {response.status_code}")
+            logger.error(f"Response: {response.text}")
+            response.raise_for_status()
+
+        logger.info(f"Started agent: {agent_name} (version {version})")
+        return response.json() if response.text else {}
+
+    def stop_agent(self, agent_name: str, version: str = "1") -> Dict[str, Any]:
+        """
+        Stop an agent.
+
+        Args:
+            agent_name: The agent name.
+            version: The agent version to stop (default: "1").
+
+        Returns:
+            The operation result.
+        """
+        url = self._api_url(f"/hostedagents/{agent_name}/versions/{version}:stop")
+        response = requests.post(url, headers=self._get_headers())
+
+        if response.status_code >= 400:
+            logger.error(f"Failed to stop agent {agent_name}: {response.status_code}")
+            response.raise_for_status()
+
+        logger.info(f"Stopped agent: {agent_name} (version {version})")
+        return response.json() if response.text else {}
 
     def close(self) -> None:
-        """Close the client connection."""
-        if self._client is not None:
-            self._client.close()
-            self._client = None
-            logger.info("Closed AIProjectClient connection")
+        """Close the manager (no-op for REST API)."""
+        pass
 
     def __enter__(self):
         """Context manager entry."""
@@ -223,13 +292,13 @@ class AzureAgentManager:
         return False
 
 
-def create_agent_from_env() -> object:
+def create_agent_from_env() -> Dict[str, Any]:
     """
     Create an agent using configuration from environment variables.
 
     Environment Variables:
         AZURE_AI_PROJECT_ENDPOINT: The Azure AI Project endpoint URL
-        AGENT_NAME: Name of the agent to create
+        AGENT_NAME: Name of the agent to create (default: weather-clothing-advisor)
         AGENT_IMAGE: Container image for the agent
         AGENT_CPU: CPU allocation (default: "1")
         AGENT_MEMORY: Memory allocation (default: "2Gi")
@@ -242,9 +311,7 @@ def create_agent_from_env() -> object:
     if not endpoint:
         raise ValueError("AZURE_AI_PROJECT_ENDPOINT environment variable is required")
 
-    agent_name = os.environ.get("AGENT_NAME")
-    if not agent_name:
-        raise ValueError("AGENT_NAME environment variable is required")
+    agent_name = os.environ.get("AGENT_NAME", "weather-clothing-advisor")
 
     agent_image = os.environ.get("AGENT_IMAGE")
     if not agent_image:
@@ -318,8 +385,7 @@ def interactive_create() -> None:
     with AzureAgentManager(project_config) as manager:
         agent = manager.create_agent_version(agent_config)
         print(f"\n✓ Agent created successfully!")
-        print(f"  Agent ID: {agent.id}")
-        print(f"  Name: {agent.name}")
+        print(f"  Response: {json.dumps(agent, indent=2)}")
 
 
 def main():
@@ -339,11 +405,17 @@ Examples:
   python azure_agent_manager.py --list
 
   # Delete an agent
-  python azure_agent_manager.py --delete <agent_id>
+  python azure_agent_manager.py --delete <agent_name>
+
+  # Start an agent
+  python azure_agent_manager.py --start <agent_name>
+
+  # Stop an agent
+  python azure_agent_manager.py --stop <agent_name>
 
 Environment Variables:
   AZURE_AI_PROJECT_ENDPOINT  - Project endpoint URL
-  AGENT_NAME                 - Name for the agent
+  AGENT_NAME                 - Name for the agent (default: weather-clothing-advisor)
   AGENT_IMAGE                - Container image (e.g., myregistry.azurecr.io/agent:v1)
   AGENT_CPU                  - CPU allocation (default: 1)
   AGENT_MEMORY               - Memory allocation (default: 2Gi)
@@ -363,8 +435,18 @@ Environment Variables:
     )
     parser.add_argument(
         "--delete",
-        metavar="AGENT_ID",
-        help="Delete an agent by ID"
+        metavar="AGENT_NAME",
+        help="Delete an agent by name"
+    )
+    parser.add_argument(
+        "--start",
+        metavar="AGENT_NAME",
+        help="Start an agent by name"
+    )
+    parser.add_argument(
+        "--stop",
+        metavar="AGENT_NAME",
+        help="Stop an agent by name"
     )
     parser.add_argument(
         "--endpoint",
@@ -385,7 +467,9 @@ Environment Variables:
             agents = manager.list_agents()
             print(f"\nFound {len(agents)} agents:")
             for agent in agents:
-                print(f"  - {agent.name} (ID: {agent.id})")
+                name = agent.get("name", "unknown")
+                state = agent.get("properties", {}).get("provisioningState", "unknown")
+                print(f"  - {name} (state: {state})")
         return 0
 
     if args.delete:
@@ -398,9 +482,30 @@ Environment Variables:
             print(f"✓ Agent {args.delete} deleted")
         return 0
 
+    if args.start:
+        if not endpoint:
+            print("Error: --endpoint or AZURE_AI_PROJECT_ENDPOINT required")
+            return 1
+        project_config = ProjectConfig(endpoint=endpoint)
+        with AzureAgentManager(project_config) as manager:
+            manager.start_agent(args.start)
+            print(f"✓ Agent {args.start} started")
+        return 0
+
+    if args.stop:
+        if not endpoint:
+            print("Error: --endpoint or AZURE_AI_PROJECT_ENDPOINT required")
+            return 1
+        project_config = ProjectConfig(endpoint=endpoint)
+        with AzureAgentManager(project_config) as manager:
+            manager.stop_agent(args.stop)
+            print(f"✓ Agent {args.stop} stopped")
+        return 0
+
     if args.from_env:
         agent = create_agent_from_env()
-        print(f"✓ Agent created: {agent.id}")
+        print(f"✓ Agent created!")
+        print(json.dumps(agent, indent=2))
         return 0
 
     # Default: interactive mode

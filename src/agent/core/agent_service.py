@@ -75,6 +75,8 @@ class AgentService:
         """
         # Try multiple possible locations
         possible_paths = [
+            # Docker container path (simplified)
+            "/app/contracts/agent-prompts.md",
             # Running from project root
             os.path.join(
                 os.getcwd(),
@@ -169,11 +171,19 @@ Be helpful, concise, and practical in your recommendations."""
             logger.info(f"Using endpoint: {azure_endpoint}")
             logger.info(f"Using deployment: {deployment_name}")
 
-            # Create chat client
+            # Create credential and token provider for Azure AD auth
+            credential = DefaultAzureCredential()
+            
+            # Create token provider function for agent framework
+            def get_token() -> str:
+                token = credential.get_token("https://cognitiveservices.azure.com/.default")
+                return token.token
+
+            # Create chat client with token provider
             chat_client = AzureOpenAIChatClient(
                 endpoint=azure_endpoint,
                 deployment_name=deployment_name,
-                credential=DefaultAzureCredential(),
+                ad_token_provider=get_token,
             )
 
             # Create agent with tools and instructions
@@ -317,7 +327,7 @@ Be helpful, concise, and practical in your recommendations."""
                 # Process with agent using Agent Framework's run method
                 # The run method returns an AgentRunResponse object
                 result = await self.agent.run(message)
-                
+
                 # Extract text from the response object
                 response_text = result.text if hasattr(result, 'text') else str(result)
 

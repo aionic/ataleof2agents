@@ -225,7 +225,8 @@ class ResponsesServer:
             Handle Foundry Responses API requests.
 
             Expects JSON body with:
-            - messages: List of conversation messages
+            - input: List of conversation messages (Foundry v6 protocol)
+            - messages: Legacy format (also supported)
             - conversation_id: Optional conversation ID
             - stream: Optional boolean for streaming
             - model: Optional model override
@@ -238,8 +239,14 @@ class ResponsesServer:
                     content={"error": {"code": "invalid_json", "message": "Invalid JSON body"}},
                 )
 
-            messages = body.get("messages", [])
-            conversation_id = body.get("conversation_id")
+            # Support both "input" (Foundry v6) and "messages" (legacy) formats
+            messages = body.get("input") or body.get("messages", [])
+            
+            # Handle string input (simple message)
+            if isinstance(messages, str):
+                messages = [{"role": "user", "content": messages}]
+            
+            conversation_id = body.get("conversation_id") or body.get("conversation")
             stream = body.get("stream", False)
             model = body.get("model")
 

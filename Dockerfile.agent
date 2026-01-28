@@ -1,85 +1,72 @@
-# Unified Dockerfile for Weather-Based Clothing Advisor Agent
-# Works for both Container Apps and Foundry Hosted deployments
+# Weather-Based Clothing Advisor Agent
+# Single unified image for ACA and Foundry Hosted deployments
 #
-# Build modes:
-#   - FOUNDRY: Exposes /responses endpoint on port 8088
-#   - CONTAINER_APP: Exposes /chat endpoint on port 8000
-#   - BOTH: Exposes both endpoints (default)
+# Build: docker build -f Dockerfile.agent -t weather-advisor .
+# Run:   docker run -p 8088:8088 -e WEATHER_API_URL=... weather-advisor
 
-FROM python:3.11-slim AS base
+# =============================================================================
+# Stage 1: Builder - Install dependencies
+# =============================================================================
+FROM python:3.11-slim AS builder
 
-# Set working directory
-WORKDIR /app
+WORKDIR /build
 
-# Install system dependencies and uv
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install uv for fast dependency resolution
+RUN pip install --no-cache-dir uv
 
-# Add uv to PATH
-ENV PATH="/root/.local/bin:$PATH"
-
-# Copy dependency file from agent package
+# Copy only requirements first (better layer caching)
 COPY src/agent/requirements.txt .
 
-# Install Python dependencies using uv (much faster than pip)
-RUN uv pip install --system --no-cache -r requirements.txt
+# Create virtual environment and install dependencies
+RUN uv venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    uv pip install --no-cache -r requirements.txt
+
+# =============================================================================
+# Stage 2: Runtime - Minimal production image
+# =============================================================================
+FROM python:3.11-slim AS runtime
+
+# Labels for container registry
+LABEL org.opencontainers.image.title="Weather Clothing Advisor Agent"
+LABEL org.opencontainers.image.description="AI agent providing weather-based clothing recommendations"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.source="https://github.com/your-org/agentdemo"
+
+# Install curl for health checks (minimal)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/cache/apt/archives/*
+
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash agent
+WORKDIR /app
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code
-COPY src/agent /app/agent
+COPY --chown=agent:agent src/agent /app/agent
+COPY --chown=agent:agent specs/001-weather-clothing-advisor/contracts /app/contracts
 
-# Copy agent prompts contract
-COPY specs/001-weather-clothing-advisor/contracts /app/specs/001-weather-clothing-advisor/contracts
-
-# Set Python path
+# Environment configuration
+ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
-
-# Default environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
 ENV LOG_LEVEL=INFO
-ENV ENVIRONMENT=production
+ENV PORT=8088
+
+# Switch to non-root user
+USER agent
+
+# Expose port
+EXPOSE 8088
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8088}/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8088/health || exit 1
 
-# ============================================================
-# Foundry Hosted Mode (default)
-# ============================================================
-FROM base AS foundry
-
-# Foundry uses port 8088
-ENV PORT=8088
-EXPOSE 8088
-
-# Run in responses mode
-CMD ["python", "-m", "agent.main", "--mode", "responses", "--port", "8088"]
-
-# ============================================================
-# Container Apps Mode
-# ============================================================
-FROM base AS container-app
-
-# Container Apps uses port 8000
-ENV PORT=8000
-EXPOSE 8000
-
-# Run in legacy mode
-CMD ["python", "-m", "agent.main", "--mode", "legacy", "--port", "8000"]
-
-# ============================================================
-# Dual Mode (both endpoints)
-# ============================================================
-FROM base AS dual
-
-# Expose both ports
-ENV PORT=8088
-EXPOSE 8088
-EXPOSE 8000
-
-# Run in responses mode by default (Container Apps can still call /responses)
-CMD ["python", "-m", "agent.main", "--mode", "responses", "--port", "8088"]
-
-# Default to foundry mode
-FROM foundry
+# Run the agent
+CMD ["python", "-m", "agent.main"]

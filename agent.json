@@ -1,0 +1,16 @@
+{
+  "name": "weather-clothing-advisor",
+  "description": "AI agent providing weather-based clothing recommendations",
+  "definition": {
+    "type": "ImageBasedHostedAgent",
+    "image": "anacr123321.azurecr.io/weather-advisor:v1",
+    "protocol": {
+      "type": "RESPONSES_API",
+      "version": "v6"
+    },
+    "resources": {
+      "cpu": "1",
+      "memory": "2Gi"
+    }
+  }
+}

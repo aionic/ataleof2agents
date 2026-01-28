@@ -1,0 +1,8 @@
+{
+  "properties": {
+    "capabilityHostKind": "Agents",
+    "storageConnections": ["lswwstorage"],
+    "threadStorageConnections": ["lswwcosmosdb"],
+    "vectorStoreConnections": ["lswwsearch"]
+  }
+}
