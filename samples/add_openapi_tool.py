@@ -3,12 +3,18 @@
 Example: Add OpenAPI tool to agent.
 
 Shows how to integrate an external API using OpenAPI specification.
+Uses the GA SDK v2.0.0+ API with conversations/responses pattern.
 """
 
 import os
-import json
 from dotenv import load_dotenv
 from azure.ai.projects import AIProjectClient
+from azure.ai.projects.models import (
+    PromptAgentDefinition,
+    OpenApiAgentTool,
+    OpenApiFunctionDefinition,
+    OpenApiAnonymousAuthDetails,
+)
 from azure.identity import DefaultAzureCredential
 
 load_dotenv()
@@ -22,7 +28,7 @@ weather_api_spec = {
     },
     "servers": [
         {
-            "url": "https://ca-weather-api-dev-ezbvua.mangomushroom-3560f614.swedencentral.azurecontainerapps.io"
+            "url": os.getenv("WEATHER_API_URL", "https://ca-weather-api-dev-ezbvua.mangomushroom-3560f614.swedencentral.azurecontainerapps.io")
         }
     ],
     "paths": {
@@ -59,26 +65,29 @@ weather_api_spec = {
     }
 }
 
-# Create tool definition
-weather_tool = {
-    "type": "openapi",
-    "openapi": {
-        "name": "get_weather",
-        "description": "Get current weather for US zip code",
-        "spec": weather_api_spec,
-        "auth": {"type": "anonymous"}
-    }
-}
-
-# Connect and create agent
-client = AIProjectClient.from_connection_string(
-    credential=DefaultAzureCredential(),
-    conn_str=os.getenv("AI_PROJECT_CONNECTION_STRING")
+# Create tool definition using SDK models
+weather_tool = OpenApiAgentTool(
+    openapi=OpenApiFunctionDefinition(
+        name="get_weather",
+        description="Get current weather for US zip code",
+        spec=weather_api_spec,
+        auth=OpenApiAnonymousAuthDetails(),
+    )
 )
 
-agent = client.agents.create_agent(
-    model="gpt-4",
-    name="WeatherBot",
+# Connect to Foundry project
+client = AIProjectClient(
+    endpoint=os.getenv("AZURE_AI_PROJECT_ENDPOINT"),
+    credential=DefaultAzureCredential()
+)
+
+# Get model deployment name
+model_deployment = os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-4.1")
+
+# Create agent with OpenAPI tool
+agent_name = "WeatherBot"
+definition = PromptAgentDefinition(
+    model=model_deployment,
     instructions="""You are a weather assistant.
 
 When user asks about weather:
@@ -89,32 +98,35 @@ When user asks about weather:
     tools=[weather_tool]
 )
 
+agent = client.agents.create(
+    name=agent_name,
+    definition=definition,
+    description="Weather assistant with OpenAPI tool"
+)
+
 print(f"✓ Agent created with OpenAPI tool: {agent.id}")
-print(f"  Agent: {agent.name}")
-print(f"  Tools: {len(agent.tools)}")
+print(f"  Agent Name: {agent.name}")
 
-# Test the agent
-thread = client.agents.threads.create()
+# Get OpenAI client for conversations
+openai = client.get_openai_client()
 
-message = client.agents.messages.create(
-    thread_id=thread.id,
-    role="user",
-    content="What's the weather in 10001?"
+# Create conversation with weather question
+conversation = openai.conversations.create(
+    items=[{'type': 'message', 'role': 'user', 'content': "What's the weather in 10001?"}]
 )
 
-run = client.agents.runs.create_and_process(
-    thread_id=thread.id,
-    agent_id=agent.id
+# Invoke agent using agent_reference pattern
+response = openai.responses.create(
+    conversation=conversation.id,
+    extra_body={'agent': {'name': agent_name, 'type': 'agent_reference'}},
+    input='',
 )
-
-messages = client.agents.messages.list(thread_id=thread.id)
-response = messages.data[0].content[0].text.value
 
 print(f"\nUser: What's the weather in 10001?")
-print(f"Agent: {response}")
+print(f"Agent: {response.output_text}")
 
 # Cleanup
-client.agents.threads.delete(thread_id=thread.id)
-client.agents.delete_agent(agent.id)
+openai.conversations.delete(conversation_id=conversation.id)
+client.agents.delete(agent_name)
 
 print("\n✓ Cleaned up")

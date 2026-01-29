@@ -92,53 +92,40 @@ $response = $messages.data[0].content[0].text.value
 Write-Host "`nAgent Response:`n$response"
 ```
 
-**Python Example**:
+**Python Example** (SDK v2.0.0+ with conversations/responses):
 
 ```python
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
-import time
 
 # Initialize client
 credential = DefaultAzureCredential()
 project_client = AIProjectClient(
-    endpoint="https://anfoundy3lsww.services.ai.azure.com/",
+    endpoint="https://anfoundy3lsww.services.ai.azure.com/api/projects/weatheragentlsww",
     credential=credential
 )
 
-# Get OpenAI-compatible client
+# Get OpenAI client
 openai_client = project_client.get_openai_client()
 
-# 1. Create thread
-thread = openai_client.beta.threads.create()
-print(f"Created thread: {thread.id}")
+# 1. Create conversation with initial message
+conversation = openai_client.conversations.create(
+    items=[{'type': 'message', 'role': 'user', 'content': 'What should I wear in 10001?'}]
+)
+print(f"Created conversation: {conversation.id}")
 
-# 2. Add message
-message = openai_client.beta.threads.messages.create(
-    thread_id=thread.id,
-    role="user",
-    content="What should I wear in 10001?"
+# 2. Invoke agent using agent_reference pattern
+response = openai_client.responses.create(
+    conversation=conversation.id,
+    extra_body={'agent': {'name': 'WeatherClothingAdvisor', 'type': 'agent_reference'}},
+    input='',
 )
 
-# 3. Create run
-run = openai_client.beta.threads.runs.create(
-    thread_id=thread.id,
-    assistant_id="weather-clothing-advisor"
-)
+# 3. Get response (no polling needed!)
+print(f"\nAgent Response:\n{response.output_text}")
 
-# 4. Poll for completion
-while run.status in ['queued', 'in_progress']:
-    time.sleep(2)
-    run = openai_client.beta.threads.runs.retrieve(
-        thread_id=thread.id,
-        run_id=run.id
-    )
-    print(f"Run status: {run.status}")
-
-# 5. Get messages
-messages = openai_client.beta.threads.messages.list(thread_id=thread.id)
-response = messages.data[0].content[0].text.value
-print(f"\nAgent Response:\n{response}")
+# 4. Cleanup
+openai_client.conversations.delete(conversation_id=conversation.id)
 ```
 
 **Pros**:
@@ -146,11 +133,11 @@ print(f"\nAgent Response:\n{response}")
 - Can maintain conversation context across multiple turns
 - Programmatic access from any language
 - Integration with existing applications
+- **No polling needed** with responses API
 
 **Cons**:
-- Requires manual polling for completion
-- More code to write and maintain
 - Need to handle authentication and errors
+- Conversation cleanup required
 
 **Use Cases**:
 - Web applications calling agent as backend service

@@ -43,9 +43,7 @@ env/
 .env
 .env.local
 .env.*.local
-*.env
 !.env.example
-!*/.env.example
 
 # Testing
 .pytest_cache/
@@ -67,33 +65,25 @@ Thumbs.db
 Desktop.ini
 ehthumbs.db
 
-# Deployment - Terraform
-.terraform/
-*.tfstate
-*.tfstate.backup
-.terraform.lock.hcl
-
-# Deployment - Bicep
-*.bicep.json
-
-# Azure
+# Azure / Deployment
 .azure/
 azds.yaml
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
 
 # Docker
 *.dockerignore.bak
 
 # Jupyter Notebooks
 .ipynb_checkpoints/
-*.ipynb_checkpoints
 
-# mypy / type checking
+# Type checking / Linting
 .mypy_cache/
 .dmypy.json
 dmypy.json
 .pytype/
-
-# Ruff / linting
 .ruff_cache/
 
 # Local development
@@ -102,9 +92,8 @@ scratch/
 tmp/
 temp/
 
-# Secrets - extra protection
+# Secrets
 secrets/
 *.pem
 *.key
 *.crt
-!*.example.pem

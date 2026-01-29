@@ -173,7 +173,7 @@ Be helpful, concise, and practical in your recommendations."""
 
             # Create credential and token provider for Azure AD auth
             credential = DefaultAzureCredential()
-            
+
             # Create token provider function for agent framework
             def get_token() -> str:
                 token = credential.get_token("https://cognitiveservices.azure.com/.default")

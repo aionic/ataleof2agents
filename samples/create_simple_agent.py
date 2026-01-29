@@ -2,56 +2,62 @@
 """
 Minimal example: Create and invoke an agent in Azure AI Foundry.
 
-This is the simplest possible agent example.
+This is the simplest possible agent example using the GA SDK v2.0.0+ API.
+Uses the conversations/responses pattern with agent_reference.
 """
 
 import os
 from dotenv import load_dotenv
 from azure.ai.projects import AIProjectClient
+from azure.ai.projects.models import PromptAgentDefinition
 from azure.identity import DefaultAzureCredential
 
 load_dotenv()
 
 # Connect to Foundry project
-client = AIProjectClient.from_connection_string(
-    credential=DefaultAzureCredential(),
-    conn_str=os.getenv("AI_PROJECT_CONNECTION_STRING")
+client = AIProjectClient(
+    endpoint=os.getenv("AZURE_AI_PROJECT_ENDPOINT"),
+    credential=DefaultAzureCredential()
 )
 
-# Create simple agent (no tools)
-agent = client.agents.create_agent(
-    model="gpt-4",
-    name="SimpleAssistant",
+# Get model deployment name
+model_deployment = os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-4.1")
+
+# Create simple agent (no tools) using PromptAgentDefinition
+agent_name = "SimpleAssistant"
+definition = PromptAgentDefinition(
+    model=model_deployment,
     instructions="You are a helpful assistant. Keep responses concise."
 )
 
-print(f"✓ Agent created: {agent.id}")
-
-# Create conversation thread
-thread = client.agents.threads.create()
-print(f"✓ Thread created: {thread.id}")
-
-# Send message
-message = client.agents.messages.create(
-    thread_id=thread.id,
-    role="user",
-    content="Hello! What can you help me with?"
+agent = client.agents.create(
+    name=agent_name,
+    definition=definition,
+    description="Simple demo agent"
 )
 
-# Run agent
-run = client.agents.runs.create_and_process(
-    thread_id=thread.id,
-    agent_id=agent.id
+print(f"✓ Agent created: {agent.name} (ID: {agent.id})")
+
+# Get OpenAI client for conversations
+openai = client.get_openai_client()
+
+# Create conversation with initial message
+conversation = openai.conversations.create(
+    items=[{'type': 'message', 'role': 'user', 'content': 'Hello! What can you help me with?'}]
+)
+print(f"✓ Conversation created: {conversation.id}")
+
+# Invoke agent using agent_reference pattern
+response = openai.responses.create(
+    conversation=conversation.id,
+    extra_body={'agent': {'name': agent_name, 'type': 'agent_reference'}},
+    input='',
 )
 
-# Get response
-messages = client.agents.messages.list(thread_id=thread.id)
-response = messages.data[0].content[0].text.value
-
-print(f"\nAgent: {response}")
+print(f"\nAgent: {response.output_text}")
 
 # Cleanup
-client.agents.threads.delete(thread_id=thread.id)
-client.agents.delete_agent(agent.id)
+openai.conversations.delete(conversation_id=conversation.id)
+client.agents.delete(agent_name)
 
 print("\n✓ Cleaned up")

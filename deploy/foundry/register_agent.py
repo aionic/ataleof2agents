@@ -3,6 +3,13 @@ Agent registration script for Azure AI Foundry deployment.
 
 Registers the weather clothing advisor agent with Azure AI Foundry,
 including tool definitions and instructions.
+
+Uses the azure-ai-projects SDK v2.0.0+ (GA API with conversations/responses).
+
+Usage:
+    python register_agent.py register --agent-name WeatherClothingAdvisor
+    python register_agent.py list
+    python register_agent.py delete --agent-name WeatherClothingAdvisor
 """
 
 import os
@@ -10,12 +17,19 @@ import sys
 import json
 import logging
 from typing import Dict, Any
+from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Get project root (deploy/foundry -> deploy -> project root)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 try:
     from azure.ai.projects import AIProjectClient
+    from azure.ai.projects.models import (
+        PromptAgentDefinition,
+        OpenApiAgentTool,
+        OpenApiFunctionDefinition,
+        OpenApiAnonymousAuthDetails,
+    )
     from azure.identity import DefaultAzureCredential
 except ImportError:
     logging.error("Azure AI Foundry SDK not installed. Please install: pip install azure-ai-projects")
@@ -58,15 +72,7 @@ class FoundryAgentRegistration:
         Returns:
             Agent instruction text
         """
-        contracts_dir = os.path.join(
-            os.path.dirname(__file__),
-            '..',
-            '..',
-            'specs',
-            '001-weather-clothing-advisor',
-            'contracts'
-        )
-        prompts_file = os.path.join(contracts_dir, 'agent-prompts.md')
+        prompts_file = PROJECT_ROOT / 'specs' / '001-weather-clothing-advisor' / 'contracts' / 'agent-prompts.md'
 
         try:
             with open(prompts_file, 'r', encoding='utf-8') as f:
@@ -84,12 +90,7 @@ class FoundryAgentRegistration:
         Returns:
             OpenAPI spec dictionary
         """
-        openapi_file = os.path.join(
-            os.path.dirname(__file__),
-            '..',
-            'weather-api',
-            'openapi.json'
-        )
+        openapi_file = PROJECT_ROOT / 'src' / 'weather-api' / 'openapi.json'
 
         try:
             with open(openapi_file, 'r', encoding='utf-8') as f:
@@ -100,32 +101,28 @@ class FoundryAgentRegistration:
             logger.error(f"OpenAPI spec file not found: {openapi_file}")
             raise
 
-    def get_tool_definition(self) -> Dict[str, Any]:
+    def get_tool_definition(self) -> OpenApiAgentTool:
         """
         Get the OpenAPI tool definition for Foundry.
 
         Returns:
-            Tool definition dictionary using OpenAPI spec
+            OpenApiAgentTool instance
         """
         try:
             openapi_spec = self.load_openapi_spec()
 
-            # Create OpenAPI tool definition for Foundry
-            # Based on Microsoft Learn documentation format
-            tool_definition = {
-                "type": "openapi",
-                "openapi": {
-                    "name": "get_weather",
-                    "description": "Retrieve current weather data for a US zip code including temperature, conditions, humidity, wind speed, and precipitation",
-                    "spec": openapi_spec,
-                    "auth": {
-                        "type": "anonymous"  # Anonymous authentication for public weather API
-                    }
-                }
-            }
+            # Create OpenAPI tool using SDK models
+            tool = OpenApiAgentTool(
+                openapi=OpenApiFunctionDefinition(
+                    name="get_weather",
+                    description="Retrieve current weather data for a US zip code including temperature, conditions, humidity, wind speed, and precipitation",
+                    spec=openapi_spec,
+                    auth=OpenApiAnonymousAuthDetails(),
+                )
+            )
 
             logger.info("Created OpenAPI tool definition for get_weather")
-            return tool_definition
+            return tool
 
         except Exception as e:
             logger.exception("Error creating tool definition")
@@ -146,19 +143,25 @@ class FoundryAgentRegistration:
         try:
             # Load instructions and tool
             instructions = self.load_agent_instructions()
-            tool_definition = self.get_tool_definition()
+            tool = self.get_tool_definition()
 
             # Get model deployment name
             model_deployment = os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME")
             if not model_deployment:
                 raise ValueError("AZURE_AI_MODEL_DEPLOYMENT_NAME environment variable is required")
 
-            # Register agent with Foundry
-            agent = self.client.agents.create_agent(
-                name=agent_name,
-                instructions=instructions,
+            # Create agent definition using SDK models
+            definition = PromptAgentDefinition(
                 model=model_deployment,
-                tools=[tool_definition],
+                instructions=instructions,
+                tools=[tool],
+            )
+
+            # Register agent with Foundry using new SDK API
+            agent = self.client.agents.create(
+                name=agent_name,
+                definition=definition,
+                description="Weather-based clothing advisor using OpenAPI weather tool",
                 metadata={
                     "deployment_type": "foundry-agent",
                     "version": "1.0.0",
@@ -175,45 +178,56 @@ class FoundryAgentRegistration:
             logger.exception(f"Error registering agent: {agent_name}")
             raise
 
-    def update_agent(self, agent_id: str) -> None:
+    def update_agent(self, agent_name: str) -> None:
         """
         Update an existing agent's instructions or tools.
 
         Args:
-            agent_id: ID of the agent to update
+            agent_name: Name of the agent to update
         """
-        logger.info(f"Updating agent: {agent_id}")
+        logger.info(f"Updating agent: {agent_name}")
 
         try:
             instructions = self.load_agent_instructions()
-            tool_definition = self.get_tool_definition()
+            tool = self.get_tool_definition()
 
-            self.client.agents.update_agent(
-                agent_id=agent_id,
+            # Get model deployment name
+            model_deployment = os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME")
+            if not model_deployment:
+                raise ValueError("AZURE_AI_MODEL_DEPLOYMENT_NAME environment variable is required")
+
+            # Create updated definition
+            definition = PromptAgentDefinition(
+                model=model_deployment,
                 instructions=instructions,
-                tools=[tool_definition]
+                tools=[tool],
             )
 
-            logger.info(f"Successfully updated agent: {agent_id}")
+            self.client.agents.update(
+                agent_name=agent_name,
+                definition=definition,
+            )
+
+            logger.info(f"Successfully updated agent: {agent_name}")
 
         except Exception as e:
-            logger.exception(f"Error updating agent: {agent_id}")
+            logger.exception(f"Error updating agent: {agent_name}")
             raise
 
-    def delete_agent(self, agent_id: str) -> None:
+    def delete_agent(self, agent_name: str) -> None:
         """
         Delete an agent from Foundry.
 
         Args:
-            agent_id: ID of the agent to delete
+            agent_name: Name of the agent to delete
         """
-        logger.info(f"Deleting agent: {agent_id}")
+        logger.info(f"Deleting agent: {agent_name}")
 
         try:
-            self.client.agents.delete_agent(agent_id)
-            logger.info(f"Successfully deleted agent: {agent_id}")
+            self.client.agents.delete(agent_name)
+            logger.info(f"Successfully deleted agent: {agent_name}")
         except Exception as e:
-            logger.exception(f"Error deleting agent: {agent_id}")
+            logger.exception(f"Error deleting agent: {agent_name}")
             raise
 
     def list_agents(self) -> list:
@@ -224,7 +238,7 @@ class FoundryAgentRegistration:
             List of agent objects
         """
         try:
-            agents_paged = self.client.agents.list_agents()
+            agents_paged = self.client.agents.list()
             agents = list(agents_paged)  # Convert ItemPaged to list
             logger.info(f"Found {len(agents)} registered agents")
             return agents
@@ -240,9 +254,8 @@ def main():
     parser = argparse.ArgumentParser(description="Register Weather Clothing Advisor agent with Azure AI Foundry")
     parser.add_argument("action", choices=["register", "update", "delete", "list"],
                        help="Action to perform")
-    parser.add_argument("--agent-id", help="Agent ID (required for update/delete)")
     parser.add_argument("--agent-name", default="WeatherClothingAdvisor",
-                       help="Agent name (for register action)")
+                       help="Agent name (for register/update/delete actions)")
 
     args = parser.parse_args()
 
@@ -256,18 +269,12 @@ def main():
             print(f"  Agent Name: {args.agent_name}")
 
         elif args.action == "update":
-            if not args.agent_id:
-                print("Error: --agent-id is required for update action")
-                sys.exit(1)
-            registration.update_agent(args.agent_id)
-            print(f"✓ Agent updated successfully: {args.agent_id}")
+            registration.update_agent(args.agent_name)
+            print(f"✓ Agent updated successfully: {args.agent_name}")
 
         elif args.action == "delete":
-            if not args.agent_id:
-                print("Error: --agent-id is required for delete action")
-                sys.exit(1)
-            registration.delete_agent(args.agent_id)
-            print(f"✓ Agent deleted successfully: {args.agent_id}")
+            registration.delete_agent(args.agent_name)
+            print(f"✓ Agent deleted successfully: {args.agent_name}")
 
         elif args.action == "list":
             agents = registration.list_agents()

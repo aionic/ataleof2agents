@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """
 Register external Container Apps agent as an OpenAPI tool in Azure AI Foundry.
-This enables Foundry to invoke the externally hosted agent.
+
+This enables Foundry to invoke the externally hosted agent via the meta-agent pattern.
+The meta-agent uses an OpenAPI tool to call the ACA /responses endpoint.
+
+Uses the azure-ai-projects SDK v2.0.0+ (GA API with conversations/responses).
+
+Usage:
+    python register_external_agent.py register --agent-name WeatherAdvisorMeta
+    python register_external_agent.py list
 """
 
 import os
@@ -9,8 +17,20 @@ import sys
 import json
 import logging
 from typing import Dict, Any
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv():
+        pass  # No-op if dotenv not installed
+
 from azure.ai.projects import AIProjectClient
+from azure.ai.projects.models import (
+    PromptAgentDefinition,
+    OpenApiAgentTool,
+    OpenApiFunctionDefinition,
+    OpenApiAnonymousAuthDetails,
+)
 from azure.identity import DefaultAzureCredential
 
 # Configure logging
@@ -91,31 +111,28 @@ Always use the external agent for weather and clothing questions - do not try to
 """
         return instructions
 
-    def get_external_agent_tool(self) -> Dict[str, Any]:
+    def get_external_agent_tool(self) -> OpenApiAgentTool:
         """
         Get the OpenAPI tool definition for external agent.
 
         Returns:
-            Tool definition dictionary
+            OpenApiAgentTool instance
         """
         try:
             openapi_spec = self.load_external_agent_spec()
 
-            # Create OpenAPI tool definition
-            tool_definition = {
-                "type": "openapi",
-                "openapi": {
-                    "name": "external_container_agent",
-                    "description": "Invoke the Weather Clothing Advisor agent running in Azure Container Apps. Use this for all weather and clothing recommendation questions.",
-                    "spec": openapi_spec,
-                    "auth": {
-                        "type": "anonymous"  # Container Apps endpoint is publicly accessible
-                    }
-                }
-            }
+            # Create OpenAPI tool using SDK models
+            tool = OpenApiAgentTool(
+                openapi=OpenApiFunctionDefinition(
+                    name="external_container_agent",
+                    description="Invoke the Weather Clothing Advisor agent running in Azure Container Apps. Use this for all weather and clothing recommendation questions.",
+                    spec=openapi_spec,
+                    auth=OpenApiAnonymousAuthDetails(),
+                )
+            )
 
             logger.info("Created OpenAPI tool definition for external agent")
-            return tool_definition
+            return tool
 
         except Exception as e:
             logger.exception("Error creating external agent tool definition")
@@ -136,19 +153,25 @@ Always use the external agent for weather and clothing questions - do not try to
         try:
             # Load instructions and tool
             instructions = self.load_meta_agent_instructions()
-            tool_definition = self.get_external_agent_tool()
+            tool = self.get_external_agent_tool()
 
             # Get model deployment name
             model_deployment = os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME")
             if not model_deployment:
                 raise ValueError("AZURE_AI_MODEL_DEPLOYMENT_NAME environment variable is required")
 
-            # Register meta-agent with Foundry
-            agent = self.client.agents.create_agent(
-                name=agent_name,
-                instructions=instructions,
+            # Create agent definition using SDK models
+            definition = PromptAgentDefinition(
                 model=model_deployment,
-                tools=[tool_definition],
+                instructions=instructions,
+                tools=[tool],
+            )
+
+            # Register meta-agent with Foundry using new SDK API
+            agent = self.client.agents.create(
+                name=agent_name,
+                definition=definition,
+                description="Meta-agent that invokes external Container Apps agent",
                 metadata={
                     "deployment_type": "meta-agent",
                     "version": "1.0.0",
@@ -174,7 +197,7 @@ Always use the external agent for weather and clothing questions - do not try to
             List of agent objects
         """
         try:
-            agents_paged = self.client.agents.list_agents()
+            agents_paged = self.client.agents.list()
             agents = list(agents_paged)
             logger.info(f"Found {len(agents)} registered agents")
             return agents

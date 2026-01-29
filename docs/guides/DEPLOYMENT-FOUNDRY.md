@@ -103,13 +103,16 @@ code .env
 
 **Required in `.env`**:
 ```env
-# Foundry connection
-AI_PROJECT_CONNECTION_STRING=<from-foundry-portal>
+# Foundry connection (new SDK v2.0.0+ uses endpoint)
+AZURE_AI_PROJECT_ENDPOINT=https://your-project.services.ai.azure.com/api/projects/your-project-name
+
+# Model deployment name
+AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4.1
 
 # Weather API endpoint (must be externally accessible)
 WEATHER_API_URL=https://ca-weather-api-dev-<suffix>.azurecontainerapps.io
 
-# Note: OpenAI config comes from Foundry project, not .env
+# Note: OpenAI config comes from Foundry project model deployment
 ```
 
 #### 2. Enable External Ingress on Weather API
@@ -169,11 +172,14 @@ tools:
 #### 4. Register Agent in Foundry
 
 ```powershell
-# Navigate to Foundry deployment directory
-cd src/agent-foundry
+# Navigate to deploy/foundry directory (scripts are here now)
+cd deploy/foundry
 
-# Run registration script
-python register_agent.py
+# Register the agent
+python register_agent.py register --agent-name WeatherClothingAdvisor
+
+# Or list existing agents
+python register_agent.py list
 ```
 
 **What this does**:
@@ -207,42 +213,38 @@ Tools: 1 (get_weather - OpenAPI)
 python test_agent.py
 ```
 
-**Or test programmatically**:
+**Or test programmatically** (SDK v2.0.0+ with conversations/responses):
 
 ```python
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
 import os
 
-# Connect to Foundry
-client = AIProjectClient.from_connection_string(
-    credential=DefaultAzureCredential(),
-    conn_str=os.getenv("AI_PROJECT_CONNECTION_STRING")
+# Connect to Foundry (use endpoint, not connection string)
+client = AIProjectClient(
+    endpoint=os.getenv("AZURE_AI_PROJECT_ENDPOINT"),
+    credential=DefaultAzureCredential()
 )
 
-# Create conversation thread
-thread = client.agents.threads.create()
+# Get OpenAI client for conversations
+openai = client.get_openai_client()
 
-# Send message
-message = client.agents.messages.create(
-    thread_id=thread.id,
-    role="user",
-    content="What should I wear in 10001?"
+# Create conversation with initial message
+conversation = openai.conversations.create(
+    items=[{'type': 'message', 'role': 'user', 'content': 'What should I wear in 10001?'}]
 )
 
-# Run agent
-run = client.agents.runs.create_and_process(
-    thread_id=thread.id,
-    agent_id="asst_52uP9hfMXCf2bKDIuSTBzZdz"  # Your agent ID
+# Invoke agent using agent_reference pattern
+response = openai.responses.create(
+    conversation=conversation.id,
+    extra_body={'agent': {'name': 'WeatherClothingAdvisor', 'type': 'agent_reference'}},
+    input='',
 )
 
-# Get response
-messages = client.agents.messages.list(thread_id=thread.id)
-latest_message = messages.data[0]
-print(f"Agent: {latest_message.content[0].text.value}")
+print(f"Agent: {response.output_text}")
 
 # Cleanup
-client.agents.threads.delete(thread_id=thread.id)
+openai.conversations.delete(conversation_id=conversation.id)
 ```
 
 **Expected response**:
@@ -303,10 +305,10 @@ Ensure your Container Apps agent is deployed and accessible:
 # Verify agent is running
 curl https://ca-weather-dev-<suffix>.azurecontainerapps.io/health
 
-# Test agent directly
-curl -X POST https://ca-weather-dev-<suffix>.azurecontainerapps.io/chat `
+# Test agent directly using /responses endpoint
+curl -X POST https://ca-weather-dev-<suffix>.azurecontainerapps.io/responses `
   -H "Content-Type: application/json" `
-  -d '{"message": "What should I wear in 10001?"}'
+  -d '{"input": "What should I wear in 10001?"}'
 ```
 
 #### 2. Create OpenAPI Spec for External Agent
@@ -317,9 +319,9 @@ curl -X POST https://ca-weather-dev-<suffix>.azurecontainerapps.io/chat `
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "External Weather Clothing Agent",
-    "version": "1.0.0",
-    "description": "Container Apps-hosted agent for clothing recommendations"
+    "title": "Weather Clothing Advisor Agent (Container Apps)",
+    "version": "2.0.0",
+    "description": "Container Apps-hosted agent using /responses endpoint"
   },
   "servers": [
     {
@@ -328,10 +330,10 @@ curl -X POST https://ca-weather-dev-<suffix>.azurecontainerapps.io/chat `
     }
   ],
   "paths": {
-    "/chat": {
+    "/responses": {
       "post": {
-        "operationId": "chatWithExternalAgent",
-        "summary": "Send message to external agent",
+        "operationId": "getClothingRecommendations",
+        "summary": "Get clothing recommendations from agent",
         "requestBody": {
           "required": true,
           "content": {
@@ -339,16 +341,16 @@ curl -X POST https://ca-weather-dev-<suffix>.azurecontainerapps.io/chat `
               "schema": {
                 "type": "object",
                 "properties": {
-                  "message": {
+                  "input": {
                     "type": "string",
-                    "description": "User message"
+                    "description": "User message (e.g., 'What should I wear in 10001?')"
                   },
-                  "session_id": {
+                  "conversation_id": {
                     "type": "string",
-                    "description": "Optional session ID"
+                    "description": "Optional conversation ID"
                   }
                 },
-                "required": ["message"]
+                "required": ["input"]
               }
             }
           }
@@ -361,14 +363,21 @@ curl -X POST https://ca-weather-dev-<suffix>.azurecontainerapps.io/chat `
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "response": {
-                      "type": "string"
-                    },
-                    "session_id": {
-                      "type": "string"
-                    },
-                    "metadata": {
-                      "type": "object"
+                    "id": { "type": "string" },
+                    "choices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "message": {
+                            "type": "object",
+                            "properties": {
+                              "role": { "type": "string" },
+                              "content": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -394,8 +403,8 @@ EXTERNAL_AGENT_URL=https://ca-weather-dev-<suffix>.azurecontainerapps.io
 #### 4. Register Meta-Agent
 
 ```powershell
-cd src/agent-foundry
-python register_external_agent.py
+cd deploy/foundry
+python register_external_agent.py register --agent-name WeatherAdvisorMeta
 ```
 
 **What this does**:
@@ -432,10 +441,10 @@ Usage:
 
 ```powershell
 # Test via SDK
-python test_external_agent.py
+python deploy/foundry/test_agent.py WeatherAdvisorMeta --message "What should I wear in 10001?"
 
-# Or test in Foundry portal
-# Navigate to Agents → ExternalAgentInvoker → Test
+# Or compare both agents
+python deploy/foundry/compare_agents.py
 ```
 
 **Result**: Foundry agent calls your Container Apps agent, returns response.
@@ -482,31 +491,43 @@ weather-api/
 └── openapi.json               # OpenAPI spec for weather API
 ```
 
-**Key Code** (`register_agent.py`):
+**Key Code** (`register_agent.py`) - SDK v2.0.0+ pattern:
 
 ```python
+from azure.ai.projects.models import (
+    PromptAgentDefinition,
+    OpenApiAgentTool,
+    OpenApiFunctionDefinition,
+    OpenApiAnonymousAuthDetails,
+)
+
 def register_agent():
     # Load configuration
     agent_config = load_agent_config("agent.yaml")
     openapi_spec = load_openapi_spec("../weather-api/openapi.json")
 
-    # Create tool definition
-    tool = {
-        "type": "openapi",
-        "openapi": {
-            "name": "get_weather",
-            "description": "Get current weather data",
-            "spec": openapi_spec,
-            "auth": {"type": "anonymous"}  # MUST be "anonymous", not "none"
-        }
-    }
+    # Create tool definition using SDK models
+    tool = OpenApiAgentTool(
+        openapi=OpenApiFunctionDefinition(
+            name="get_weather",
+            description="Get current weather data",
+            spec=openapi_spec,
+            auth=OpenApiAnonymousAuthDetails(),
+        )
+    )
 
-    # Create agent
-    agent = client.agents.create_agent(
-        model="gpt-4",
-        name=agent_config["name"],
+    # Create agent definition
+    definition = PromptAgentDefinition(
+        model=os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME"),
         instructions=agent_config["instructions"],
-        tools=[tool]
+        tools=[tool],
+    )
+
+    # Create agent using new SDK API
+    agent = client.agents.create(
+        name=agent_config["name"],
+        definition=definition,
+        description="Weather-based clothing advisor"
     )
 
     return agent.id
@@ -521,31 +542,43 @@ src/agent-foundry/
 └── test_external_agent.py         # Test script
 ```
 
-**Key Code** (`register_external_agent.py`):
+**Key Code** (`register_external_agent.py`) - SDK v2.0.0+ pattern:
 
 ```python
+from azure.ai.projects.models import (
+    PromptAgentDefinition,
+    OpenApiAgentTool,
+    OpenApiFunctionDefinition,
+    OpenApiAnonymousAuthDetails,
+)
+
 def register_meta_agent():
     # Load and update spec with actual URL
     spec = load_external_agent_spec("external-agent-openapi.json")
     spec["servers"][0]["url"] = os.getenv("EXTERNAL_AGENT_URL")
 
-    # Create meta-agent tool
-    tool = {
-        "type": "openapi",
-        "openapi": {
-            "name": "chatWithExternalAgent",
-            "description": "Invoke external Container Apps agent",
-            "spec": spec,
-            "auth": {"type": "anonymous"}
-        }
-    }
+    # Create meta-agent tool using SDK models
+    tool = OpenApiAgentTool(
+        openapi=OpenApiFunctionDefinition(
+            name="getClothingRecommendations",
+            description="Invoke external Container Apps agent via /responses endpoint",
+            spec=spec,
+            auth=OpenApiAnonymousAuthDetails(),
+        )
+    )
 
-    # Create meta-agent
-    agent = client.agents.create_agent(
-        model="gpt-4",
-        name="ExternalAgentInvoker",
-        instructions="You invoke an external agent. Forward user requests to the chatWithExternalAgent tool.",
-        tools=[tool]
+    # Create agent definition
+    definition = PromptAgentDefinition(
+        model=os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME"),
+        instructions="You invoke an external agent. Forward user requests to the getClothingRecommendations tool.",
+        tools=[tool],
+    )
+
+    # Create meta-agent using new SDK API
+    agent = client.agents.create(
+        name="WeatherAdvisorMeta",
+        definition=definition,
+        description="Meta-agent that invokes external Container Apps agent"
     )
 
     return agent.id

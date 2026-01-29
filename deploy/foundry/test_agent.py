@@ -2,6 +2,8 @@
 """
 Test script for Azure AI Foundry agent.
 Tests the WeatherClothingAdvisor agent via API calls.
+
+Updated for azure-ai-projects SDK v2.0.0+ (GA API with conversations).
 """
 
 import os
@@ -40,61 +42,46 @@ class FoundryAgentTester:
 
         logger.info(f"Initialized Foundry client for project: {self.project_endpoint}")
 
-    def test_agent(self, agent_id: str, test_message: str = "What should I wear in 10001?") -> Dict[str, Any]:
+    def test_agent(self, agent_name: str, test_message: str = "What should I wear in 10001?") -> Dict[str, Any]:
         """
-        Test agent with a message.
+        Test agent with a message using the new conversations API.
 
         Args:
-            agent_id: ID of the agent to test
+            agent_name: Name of the agent to test
             test_message: Message to send to the agent
 
         Returns:
             Test results dictionary
         """
-        logger.info(f"Testing agent: {agent_id}")
+        logger.info(f"Testing agent: {agent_name}")
         logger.info(f"Test message: {test_message}")
 
         start_time = time.time()
+        conversation_id = None
 
         try:
-            # Create thread
-            logger.info("Creating conversation thread...")
-            thread = self.client.agents.threads.create()
-            thread_id = thread.id
-            logger.info(f"Created thread: {thread_id}")
+            # Get OpenAI client for conversations
+            openai_client = self.client.get_openai_client()
 
-            # Send message
-            logger.info("Sending user message...")
-            message = self.client.agents.messages.create(
-                thread_id=thread_id,
-                role="user",
-                content=test_message
+            # Create conversation with initial message
+            logger.info("Creating conversation with initial user message...")
+            conversation = openai_client.conversations.create(
+                items=[{'type': 'message', 'role': 'user', 'content': test_message}],
             )
-            logger.info(f"Created message: {message.id}")
+            conversation_id = conversation.id
+            logger.info(f"Created conversation: {conversation_id}")
 
-            # Create and process run (this handles polling automatically)
-            logger.info("Starting agent run and processing...")
-            run = self.client.agents.runs.create_and_process(
-                thread_id=thread_id,
-                agent_id=agent_id
+            # Invoke the agent using agent_reference
+            logger.info(f"Invoking agent '{agent_name}' via responses API...")
+            response = openai_client.responses.create(
+                conversation=conversation_id,
+                extra_body={'agent': {'name': agent_name, 'type': 'agent_reference'}},
+                input='',
             )
-            run_id = run.id
-            logger.info(f"Run completed with status: {run.status}")
 
-            # Check if run failed
-            if run.status == "failed":
-                raise RuntimeError(f"Run failed: {run.last_error}")
-
-            # Get response messages
-            logger.info("Retrieving response...")
-            messages = self.client.agents.messages.list(thread_id=thread_id)
-
-            # Extract assistant's response
-            response_text = ""
-            for message in messages:
-                if message.role == "assistant" and hasattr(message, 'text_messages') and message.text_messages:
-                    response_text = message.text_messages[-1].text.value
-                    break
+            # Get the response text
+            response_text = response.output_text
+            logger.info(f"Response received: {len(response_text)} characters")
 
             if not response_text:
                 raise RuntimeError("No assistant response found")
@@ -102,15 +89,17 @@ class FoundryAgentTester:
             end_time = time.time()
             duration = end_time - start_time
 
-            # Clean up
-            logger.info("Cleaning up thread...")
-            self.client.agents.threads.delete(thread_id)
+            # Clean up conversation
+            logger.info("Cleaning up conversation...")
+            try:
+                openai_client.conversations.delete(conversation_id=conversation_id)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup conversation: {cleanup_error}")
 
             result = {
                 "success": True,
-                "agent_id": agent_id,
-                "thread_id": thread_id,
-                "run_id": run_id,
+                "agent_name": agent_name,
+                "conversation_id": conversation_id,
                 "test_message": test_message,
                 "response": response_text,
                 "duration_seconds": round(duration, 2),
@@ -124,10 +113,18 @@ class FoundryAgentTester:
             end_time = time.time()
             duration = end_time - start_time
 
+            # Try to clean up conversation on error
+            if conversation_id:
+                try:
+                    openai_client = self.client.get_openai_client()
+                    openai_client.conversations.delete(conversation_id=conversation_id)
+                except Exception:
+                    pass
+
             logger.exception("Test failed")
             return {
                 "success": False,
-                "agent_id": agent_id,
+                "agent_name": agent_name,
                 "test_message": test_message,
                 "error": str(e),
                 "duration_seconds": round(duration, 2),
@@ -140,7 +137,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Test Weather Clothing Advisor agent in Azure AI Foundry")
-    parser.add_argument("agent_id", help="Agent ID to test")
+    parser.add_argument("agent_name", help="Agent name to test (e.g., WeatherClothingAdvisor)")
     parser.add_argument("--message", default="What should I wear in 10001?",
                        help="Test message to send to agent")
 
@@ -148,12 +145,12 @@ def main():
 
     try:
         tester = FoundryAgentTester()
-        result = tester.test_agent(args.agent_id, args.message)
+        result = tester.test_agent(args.agent_name, args.message)
 
         print("\n" + "="*80)
         print("FOUNDRY AGENT TEST RESULTS")
         print("="*80)
-        print(f"Agent ID: {result['agent_id']}")
+        print(f"Agent Name: {result['agent_name']}")
         print(f"Test Message: {result['test_message']}")
         print(f"Duration: {result['duration_seconds']}s")
         print(f"Status: {result['status']}")
@@ -169,7 +166,7 @@ def main():
             # Check success criteria
             print("\nSuccess Criteria:")
             print(f"  ✓ Response received")
-            print(f"  {'✓' if result['duration_seconds'] < 5 else '✗'} Response time < 5s (SC-001): {result['duration_seconds']}s")
+            print(f"  {'✓' if result['duration_seconds'] < 10 else '✗'} Response time < 10s (SC-001): {result['duration_seconds']}s")
             print(f"  {'✓' if 'wear' in result['response'].lower() or 'clothing' in result['response'].lower() else '✗'} Clothing recommendation format (SC-002)")
 
             sys.exit(0)

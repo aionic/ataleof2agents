@@ -2,6 +2,8 @@
 """
 Comparison test script for Story 6.
 Tests both Foundry-native agent and Container Apps agent with identical queries.
+
+Uses the GA SDK v2.0.0+ API with conversations/responses pattern.
 """
 
 import os
@@ -24,62 +26,49 @@ class AgentComparator:
         """Initialize clients for both agents."""
         # Foundry setup
         self.project_endpoint = os.getenv("AZURE_AI_PROJECT_ENDPOINT")
-        self.foundry_agent_id = "asst_52uP9hfMXCf2bKDIuSTBzZdz"  # WeatherClothingAdvisor
+        self.foundry_agent_name = os.getenv("FOUNDRY_AGENT_NAME", "WeatherClothingAdvisor")
 
         credential = DefaultAzureCredential()
         self.foundry_client = AIProjectClient(
             endpoint=self.project_endpoint,
             credential=credential
         )
+        self.openai_client = self.foundry_client.get_openai_client()
 
         # Container Apps setup
         self.container_agent_url = os.getenv("EXTERNAL_AGENT_URL")
         if not self.container_agent_url:
             raise ValueError("EXTERNAL_AGENT_URL not set")
 
-        print(f"Foundry Agent: {self.foundry_agent_id}")
+        print(f"Foundry Agent: {self.foundry_agent_name}")
         print(f"Container Agent: {self.container_agent_url}")
 
     def test_foundry_agent(self, message: str) -> Dict[str, Any]:
-        """Test Foundry-native agent."""
+        """Test Foundry-native agent using conversations/responses API."""
         start_time = time.time()
+        conversation_id = None
 
         try:
-            # Create thread
-            thread = self.foundry_client.agents.threads.create()
+            # Create conversation with initial message
+            conversation = self.openai_client.conversations.create(
+                items=[{'type': 'message', 'role': 'user', 'content': message}]
+            )
+            conversation_id = conversation.id
 
-            # Send message
-            self.foundry_client.agents.messages.create(
-                thread_id=thread.id,
-                role="user",
-                content=message
+            # Invoke agent using agent_reference pattern
+            response = self.openai_client.responses.create(
+                conversation=conversation_id,
+                extra_body={'agent': {'name': self.foundry_agent_name, 'type': 'agent_reference'}},
+                input='',
             )
 
-            # Run agent
-            run = self.foundry_client.agents.runs.create_and_process(
-                thread_id=thread.id,
-                agent_id=self.foundry_agent_id
-            )
+            response_text = response.output_text
 
-            # Check status
-            if run.status == "failed":
-                duration = time.time() - start_time
-                return {
-                    "success": False,
-                    "error": str(run.last_error),
-                    "duration": duration
-                }
-
-            # Get response
-            messages = self.foundry_client.agents.messages.list(thread_id=thread.id)
-            response_text = ""
-            for msg in messages:
-                if msg.role == "assistant" and hasattr(msg, 'text_messages') and msg.text_messages:
-                    response_text = msg.text_messages[-1].text.value
-                    break
-
-            # Cleanup
-            self.foundry_client.agents.threads.delete(thread.id)
+            # Cleanup conversation
+            try:
+                self.openai_client.conversations.delete(conversation_id=conversation_id)
+            except Exception:
+                pass
 
             duration = time.time() - start_time
 
@@ -92,6 +81,12 @@ class AgentComparator:
 
         except Exception as e:
             duration = time.time() - start_time
+            # Try cleanup on error
+            if conversation_id:
+                try:
+                    self.openai_client.conversations.delete(conversation_id=conversation_id)
+                except Exception:
+                    pass
             return {
                 "success": False,
                 "error": str(e),
@@ -100,13 +95,14 @@ class AgentComparator:
             }
 
     def test_container_agent(self, message: str) -> Dict[str, Any]:
-        """Test Container Apps agent."""
+        """Test Container Apps agent via /responses endpoint."""
         start_time = time.time()
 
         try:
+            # Use /responses endpoint (new API)
             response = requests.post(
-                f"{self.container_agent_url}/chat",
-                json={"message": message},
+                f"{self.container_agent_url}/responses",
+                json={"input": message},
                 headers={"Content-Type": "application/json"},
                 timeout=60
             )
@@ -115,12 +111,16 @@ class AgentComparator:
 
             if response.status_code == 200:
                 data = response.json()
+                # Extract response from choices array
+                response_text = ""
+                if data.get("choices"):
+                    response_text = data["choices"][0].get("message", {}).get("content", "")
                 return {
                     "success": True,
-                    "response": data.get("response", ""),
+                    "response": response_text,
                     "duration": duration,
                     "deployment": "container-app",
-                    "metadata": data.get("metadata", {})
+                    "metadata": {"id": data.get("id")}
                 }
             else:
                 return {
@@ -185,7 +185,7 @@ class AgentComparator:
         report.append("# Agent Comparison Test Results")
         report.append(f"\n**Test Date**: {time.strftime('%Y-%m-%d %H:%M:%S')}")
         report.append(f"\n**Agents Tested**:")
-        report.append(f"- Foundry-native: {self.foundry_agent_id}")
+        report.append(f"- Foundry-native: {self.foundry_agent_name}")
         report.append(f"- Container Apps: {self.container_agent_url}")
 
         # Summary table

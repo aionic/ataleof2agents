@@ -4,325 +4,196 @@
   <img src="ataleoftwoagents.jpg" alt="A Tale of Two Agents" width="600">
 </p>
 
-**Build once, deploy anywhere**: A practical reference for building AI agents that work in both self-hosted (Azure Container Apps) and managed (Azure AI Foundry) environments.
-
-> **Use Case**: Weather-based clothing advisor (throwaway example)
-> **Real Value**: Portable agent pattern you can adapt for any external API integration
+**Build once, deploy anywhere**: A reference implementation for building AI agents that work in both self-hosted (Azure Container Apps) and managed (Azure AI Foundry) environments.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 ---
 
-## Why This Repo?
+## What This Repo Does
 
-You're evaluating Agent Framework and need to decide:
-- **Container Apps** (self-hosted): Full control, faster responses
-- **Foundry Hosted** (managed): No infrastructure, Foundry protocol compatibility
-- **Both**: Same code, multiple deployment targets!
+Demonstrates a **Weather Clothing Advisor** agent that:
+1. Accepts a zip code from the user
+2. Calls an external Weather API to get current conditions
+3. Uses AI reasoning to recommend appropriate clothing
+4. Returns conversational recommendations
 
-**This repo shows you**: Same agent code works in both environments. Choose based on your needs, not code limitations.
-
----
-
-## Unified Agent Package 🆕
-
-The **unified agent package** (`src/agent/`) enables true "write once, deploy anywhere":
-
-```
-src/agent/
-├── main.py           # Unified entry point (responses/legacy/interactive modes)
-├── core/             # Agent logic, models, business rules
-├── hosting/          # Responses API server for Foundry protocol
-├── tools/            # Weather tool implementation
-└── telemetry/        # Application Insights integration
-```
-
-**Run modes:**
-- `--mode responses` → Foundry Hosted compatible (`/responses` on port 8088)
-- `--mode legacy` → Container Apps compatible (`/chat` on port 8000)
-- `--mode interactive` → Local testing
-
-👉 **[Unified Agent Documentation](./docs/UNIFIED-AGENT.md)**
+**Real Value**: The portable agent pattern you can adapt for any external API integration.
 
 ---
 
-## Quick Start (5 Minutes)
+## Quick Start
 
-### What You'll Build
-An AI agent that:
-1. Calls an external weather API
-2. Applies AI reasoning
-3. Returns clothing recommendations
+### Prerequisites
+- Azure subscription with CLI authenticated (`az login`)
+- Python 3.11+ with uv (`pip install uv`)
+- OpenWeatherMap API key ([free tier](https://openweathermap.org/api))
 
-### Deploy to Container Apps
+### Setup
 ```powershell
 # Clone and setup
 git clone <repo-url>
 cd agentdemo
+uv sync
 .\.venv\Scripts\Activate.ps1
 
-# Configure (add your keys to .env)
+# Configure environment
 cp .env.example .env
-
-# Deploy
-./deploy/container-app/deploy.ps1
+# Edit .env with your values
 ```
 
-### Deploy to Foundry Hosted
+### Deploy to Container Apps
 ```powershell
-# Build and push container
-docker build -f Dockerfile.agent --target foundry -t myregistry.azurecr.io/weather-advisor:v1 .
-docker push myregistry.azurecr.io/weather-advisor:v1
-
-# Register with Foundry
-python deploy/scripts/azure_agent_manager.py
+cd deploy/container-app
+./deploy.ps1
 ```
 
-**⏱️ Total time**: ~15 minutes per deployment
+### Deploy to Foundry
+```powershell
+# Set environment variables
+$env:AZURE_AI_PROJECT_ENDPOINT = "https://your-project.services.ai.azure.com/api/projects/your-project"
+$env:WEATHER_API_URL = "https://your-weather-api.azurecontainerapps.io"
+$env:AZURE_AI_MODEL_DEPLOYMENT_NAME = "gpt-4.1"
 
----
-
-## Choose Your Path
-
-### 🚀 Container Apps (Self-Hosted)
-**Best for**:
-- High-volume workloads (2.3x faster responses)
-- Full infrastructure control
-- Custom networking requirements
-
-**You get**:
-- Docker containers deployed to Azure Container Apps
-- Direct HTTP API calls
-- Managed identity authentication
-- Application Insights monitoring
-
-👉 **[Container Apps Deployment Guide](./docs/guides/DEPLOYMENT-CONTAINER-APPS.md)**
-
----
-
-### ☁️ Azure AI Foundry Hosted (Managed)
-**Best for**:
-- Rapid development
-- No infrastructure management
-- Foundry Responses API compatibility
-
-**You get**:
-- Container-based agent with Foundry protocol
-- Managed agent runtime
-- Built-in conversation management
-- Foundry portal integration
-
-👉 **[Foundry Deployment Guide](./docs/guides/DEPLOYMENT-FOUNDRY.md)**
-
----
-
-### 🔄 Both (Side-by-Side)
-**Best for**:
-- Evaluating performance/cost
-- Hybrid deployment strategies
-- Migration scenarios
-
-**Compare**:
-- Same agent code, two deployment models
-- See performance differences (tested: Container Apps 4.68s avg vs Foundry 10.88s avg)
-- Cost analysis: 70% savings with hybrid pattern
-
-👉 **[Comparison Report](./docs/comparison-report.md)** | **[Porting Guide](./docs/PORTING-GUIDE.md)**
-
----
-
-## What's Inside
-
-### Architecture
-```
-┌─────────────────────────────────────────────────────────┐
-│  Agent (Either deployment model)                        │
-├─────────────────────────────────────────────────────────┤
-│  • Orchestrates workflow                                │
-│  • Calls external Weather API                           │
-│  • Applies AI reasoning (Azure OpenAI)                  │
-│  • Returns recommendations                              │
-└──────────────────┬──────────────────────────────────────┘
-                   ↓
-         External Weather API
-         (OpenWeatherMap via Container Apps)
+# Register and test agent
+python deploy/foundry/register_agent.py register --agent-name WeatherClothingAdvisor
+python deploy/foundry/test_agent.py WeatherClothingAdvisor --message "What should I wear in 10001?"
 ```
 
-**Key Concept**: The agent calls external HTTP APIs - not embedded functions. This makes it portable.
+---
 
-### Repository Structure
+## Choose Your Deployment
+
+| Aspect | Container Apps (ACA) | Azure AI Foundry |
+|--------|---------------------|------------------|
+| **Response Time** | ~3-5s (faster) | ~10-30s |
+| **Infrastructure** | You manage | Microsoft manages |
+| **Setup Time** | ~15 min | ~10 min |
+| **Best For** | High volume, low latency | Rapid dev, Foundry integration |
+
+**Same agent code works in both**. Choose based on your needs.
+
+---
+
+## Repository Structure
+
 ```
 src/
-├── agent-container/       # Container Apps agent code
-├── agent-foundry/         # Foundry registration & tests
-└── shared/                # Common business logic
+├── agent/                    # Unified agent package (runs anywhere)
+│   ├── core/                 # Business logic, models, clothing recommendations
+│   ├── hosting/              # /responses API server (Foundry protocol)
+│   ├── tools/                # Weather tool implementation
+│   └── telemetry/            # Application Insights integration
+└── weather-api/              # External weather API service
 
 deploy/
-├── container-app/         # Bicep templates & scripts
-└── shared/                # Shared infrastructure
+├── container-app/            # ACA deployment (Bicep + PowerShell)
+├── foundry/                  # Foundry registration scripts
+└── shared/                   # Shared infrastructure modules
 
-docs/                      # Comprehensive guides
-tests/                     # Test scripts
-samples/                   # Minimal code examples
+samples/                      # Standalone SDK usage examples
+docs/                         # Comprehensive guides
+tests/                        # Test scripts
 ```
+
+---
+
+## How It Works
+
+```
+User: "What should I wear in 10001?"
+           │
+           ▼
+    ┌──────────────┐
+    │   Agent      │  ← Runs in ACA or Foundry
+    │  (unified)   │
+    └──────┬───────┘
+           │
+           ▼
+    ┌──────────────┐
+    │ Weather API  │  ← External HTTP call (OpenAPI)
+    │ (Container)  │
+    └──────┬───────┘
+           │
+           ▼
+    ┌──────────────┐
+    │ Azure OpenAI │  ← AI reasoning
+    │   (gpt-4.1)  │
+    └──────┬───────┘
+           │
+           ▼
+"Based on 23°F weather in NYC, wear a heavy coat..."
+```
+
+**Key Insight**: The agent calls external APIs via HTTP, not embedded functions. This makes it portable across deployment targets.
+
+---
+
+## Test It
+
+### ACA Agent (Direct)
+```powershell
+$body = '{"input": [{"role": "user", "content": "What should I wear in 10001?"}]}'
+Invoke-RestMethod -Uri "https://ca-weather-dev-xxx.azurecontainerapps.io/responses" `
+  -Method Post -ContentType "application/json" -Body $body
+```
+
+### Foundry Agent (via SDK)
+```powershell
+python deploy/foundry/test_agent.py WeatherClothingAdvisor --message "What should I wear in 90210?"
+```
+
+### Compare Both
+```powershell
+python deploy/foundry/compare_agents.py
+```
+
+---
+
+## SDK Samples
+
+See [samples/](./samples/) for standalone examples:
+
+- **[create_simple_agent.py](./samples/create_simple_agent.py)** - Create a basic Foundry agent
+- **[add_openapi_tool.py](./samples/add_openapi_tool.py)** - Add OpenAPI tools to agents
+
+Uses `azure-ai-projects` SDK v2.0.0+ with GA API patterns.
 
 ---
 
 ## Documentation
 
-### Getting Started
-- **[Agent Framework Tutorial](./docs/AGENT-FRAMEWORK-TUTORIAL.md)** - Learn the concepts
-- **[Quickstart](./QUICKSTART.md)** - Deploy in 5 minutes
-
-### Deployment Guides
-- **[Container Apps Deployment](./docs/DEPLOYMENT-CONTAINER-APPS.md)** - Self-hosted path
-- **[Foundry Deployment](./docs/DEPLOYMENT-FOUNDRY.md)** - Managed path (both patterns)
-- **[Porting Guide](./docs/PORTING-GUIDE.md)** - Move between deployments
-
-### Reference
-- **[Architecture Deep Dive](./docs/AGENT-FRAMEWORK-TUTORIAL.md#architecture-overview)** - How it all works
-- **[Workflow Patterns](./docs/WORKFLOW-ORCHESTRATION-PATTERNS.md)** - Cost-effective patterns
-- **[Comparison Report](./docs/comparison-report.md)** - Performance benchmarks
+| Guide | Description |
+|-------|-------------|
+| [QUICKSTART.md](./QUICKSTART.md) | 5-minute getting started |
+| [Unified Agent](./docs/UNIFIED-AGENT.md) | Architecture and API reference |
+| [Container Apps Deployment](./docs/guides/DEPLOYMENT-CONTAINER-APPS.md) | Full ACA deployment guide |
+| [Foundry Deployment](./docs/guides/DEPLOYMENT-FOUNDRY.md) | Foundry registration guide |
+| [Porting Guide](./docs/guides/PORTING-GUIDE.md) | Move between deployments |
 
 ---
 
-## Example: Weather Clothing Advisor
+## Environment Variables
 
-**What it does**: Takes a zip code, gets weather, recommends clothing.
+```env
+# Required for Foundry
+AZURE_AI_PROJECT_ENDPOINT=https://your-project.services.ai.azure.com/api/projects/your-project
+AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4.1
 
-**Why it matters**: Simple enough to understand quickly, complex enough to show real patterns.
+# Required for Weather API
+WEATHER_API_URL=https://your-weather-api.azurecontainerapps.io
+OPENWEATHERMAP_API_KEY=your-key
 
-**Your use case**: Replace weather API with your own external service. The pattern stays the same.
-
-### Try It
-
-**Container Apps**:
-```bash
-curl https://ca-weather-dev-<your-id>.azurecontainerapps.io/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What should I wear in 10001?"}'
-```
-
-**Foundry**:
-```python
-from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
-
-client = AIProjectClient.from_connection_string(
-    credential=DefaultAzureCredential(),
-    conn_str="<your-connection-string>"
-)
-
-# Create thread and run agent
-thread = client.agents.threads.create()
-message = client.agents.messages.create(
-    thread_id=thread.id,
-    role="user",
-    content="What should I wear in 10001?"
-)
-run = client.agents.runs.create_and_process(
-    thread_id=thread.id,
-    agent_id="<your-agent-id>"
-)
+# Optional (for meta-agent pattern)
+EXTERNAL_AGENT_URL=https://your-aca-agent.azurecontainerapps.io
 ```
 
 ---
-
-## Key Concepts
-
-### 1. Agent Framework
-Microsoft's framework for building AI agents with:
-- Declarative configuration (YAML)
-- External API integration (OpenAPI)
-- Workflow orchestration
-- Portability across environments
-
-### 2. External API Pattern
-**Traditional**: Agent → Embedded function → External API
-**This pattern**: Agent → External HTTP API (directly)
-
-**Why**: Portability. HTTP APIs work everywhere.
-
-### 3. Deployment Models
-**Container Apps**: You manage Docker containers
-**Foundry**: Microsoft manages the runtime
-**Your agent code**: Works in both
-
-### 4. Cost Optimization
-**Agent-only**: Expensive (every request uses LLM)
-**Hybrid**: 70% cheaper (use business logic for simple cases, agents for complex reasoning)
-
-👉 **[Workflow Patterns Guide](./docs/WORKFLOW-ORCHESTRATION-PATTERNS.md)**
-
----
-
-## Performance
-
-Based on 7 test cases across both deployments:
-
-| Metric | Container Apps | Foundry | Winner |
-|--------|---------------|---------|--------|
-| **Success Rate** | 100% (7/7) | 100% (7/7) | Tie ✅ |
-| **Avg Response Time** | 4.68s | 10.88s | Container Apps 🚀 |
-| **Setup Complexity** | High | Low | Foundry 👍 |
-| **Cost (high volume)** | Lower | Higher | Container Apps 💰 |
-| **Maintenance** | You | Microsoft | Foundry ⚙️ |
-
-**Verdict**: Both work reliably. Choose based on your priorities.
-
-👉 **[Full Comparison Report](./docs/comparison-report.md)**
-
----
-
-## Prerequisites
-
-### Required
-- **Azure Subscription** with Owner or Contributor role
-- **Azure CLI** - [Install](https://docs.microsoft.com/cli/azure/install-azure-cli)
-- **Python 3.11+** - [Download](https://www.python.org/downloads/)
-- **uv** - `pip install uv` or [install guide](https://docs.astral.sh/uv/)
-- **OpenWeatherMap API Key** - [Free tier](https://openweathermap.org/api)
-
-### Optional
-- **Docker Desktop** - For local testing
-- **VS Code** - Recommended editor
-- **Azure AI Foundry Project** - For Foundry deployment
-
----
-
-## Next Steps
-
-1. **Learn the concepts**: [Agent Framework Tutorial](./docs/AGENT-FRAMEWORK-TUTORIAL.md)
-2. **Deploy Container Apps**: [Deployment Guide](./docs/DEPLOYMENT-CONTAINER-APPS.md)
-3. **Deploy Foundry**: [Deployment Guide](./docs/DEPLOYMENT-FOUNDRY.md)
-4. **Compare both**: [Porting Guide](./docs/PORTING-GUIDE.md)
-5. **Adapt for your use case**: Replace weather API with your own
-
----
-
-## Contributing
-
-This is a reference implementation. Feel free to:
-- Adapt for your use case
-- Submit improvements
-- Share your experiences
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) file for details.
+MIT License - see [LICENSE](./LICENSE) for details.
 
 ---
 
-## Support
-
-- **Issues**: [GitHub Issues](link-to-issues)
-- **Documentation**: See [docs/](./docs/) folder
-- **Examples**: See [samples/](./samples/) folder
-
----
-
-**Built with**: Microsoft Agent Framework | Azure Container Apps | Azure AI Foundry
-**Example Use Case**: Weather-based clothing recommendations
-**Real Value**: Portable agent pattern for any external API integration
-
-👉 **[Get Started Now](./QUICKSTART.md)**
+**Built with**: Azure AI Projects SDK | Azure Container Apps | Azure AI Foundry | Azure OpenAI

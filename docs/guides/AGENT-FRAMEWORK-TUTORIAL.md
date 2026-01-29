@@ -479,13 +479,30 @@ class WorkflowOrchestrator:
         return response
 ```
 
-**Foundry** (`register_agent.py`):
+**Foundry** (`register_agent.py`) - SDK v2.0.0+ pattern:
 ```python
-# Foundry manages orchestration
-agent = client.agents.create_agent(
-    model="gpt-4",
+from azure.ai.projects.models import PromptAgentDefinition, OpenApiAgentTool
+
+# Define agent with tools
+definition = PromptAgentDefinition(
+    model="gpt-4.1",
     instructions="...",
     tools=[openapi_tool]  # Foundry calls API automatically
+)
+
+# Create agent
+agent = client.agents.create(
+    name="WeatherClothingAdvisor",
+    definition=definition
+)
+
+# Invoke via conversations/responses
+openai = client.get_openai_client()
+conv = openai.conversations.create(items=[...])
+response = openai.responses.create(
+    conversation=conv.id,
+    extra_body={'agent': {'name': 'WeatherClothingAdvisor', 'type': 'agent_reference'}},
+    input=''
 )
 ```
 

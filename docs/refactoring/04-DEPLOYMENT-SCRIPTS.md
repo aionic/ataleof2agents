@@ -324,17 +324,17 @@ def interactive_mode():
             print(f"  Agent: {agent}")
 
         elif choice == "2":
-            # List agents
+            # List agents (SDK v2.0.0+ uses .list() not .list_agents())
             print("\nListing agents...")
-            agents = manager.client.agents.list_agents()
+            agents = list(manager.client.agents.list())
             for agent in agents:
                 print(f"  - {agent.name} (ID: {agent.id})")
 
         elif choice == "3":
-            # Delete agent
-            agent_id = input("Agent ID to delete: ").strip()
-            print(f"\nDeleting agent {agent_id}...")
-            manager.client.agents.delete_agent(agent_id)
+            # Delete agent (SDK v2.0.0+ uses .delete(name) not .delete_agent(id))
+            agent_name = input("Agent name to delete: ").strip()
+            print(f"\nDeleting agent {agent_name}...")
+            manager.client.agents.delete(agent_name)
             print("✓ Agent deleted")
 
 

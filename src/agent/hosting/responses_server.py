@@ -241,11 +241,15 @@ class ResponsesServer:
 
             # Support both "input" (Foundry v6) and "messages" (legacy) formats
             messages = body.get("input") or body.get("messages", [])
-            
+
+            # Handle nested format: {"input": {"messages": [...]}}
+            if isinstance(messages, dict) and "messages" in messages:
+                messages = messages["messages"]
+
             # Handle string input (simple message)
             if isinstance(messages, str):
                 messages = [{"role": "user", "content": messages}]
-            
+
             conversation_id = body.get("conversation_id") or body.get("conversation")
             stream = body.get("stream", False)
             model = body.get("model")
